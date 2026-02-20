@@ -11,6 +11,7 @@ build:
     build:
       html:
         - python -m pip install -e ".[dev]"
+        - python -m pip install mkdocs-material "mkdocs<2.0" mkdocstrings[python] pymdown-extensions
         - python -m mkdocs build
 
 mkdocs:
