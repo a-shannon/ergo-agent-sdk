@@ -45,7 +45,7 @@ class SigmaUSD:
                 "status": "Healthy" if 400 <= data.get("reserveRatio", 0) <= 800 else "Warning (Minting restricted)",
             }
         except Exception as e:
-            raise ValueError(f"Failed to fetch SigmaUSD bank state: {str(e)}")
+            raise ValueError(f"Failed to fetch SigmaUSD bank state: {str(e)}") from e
 
     def build_mint_sigusd_tx(self, amount_sigusd: int, wallet: Any) -> dict[str, Any]:
         """

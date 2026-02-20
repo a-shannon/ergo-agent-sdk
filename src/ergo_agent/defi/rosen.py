@@ -41,7 +41,7 @@ class RosenBridge:
                 "url": data.get("url")
             }
         except Exception as e:
-            raise ValueError(f"Failed to fetch Rosen Bridge status: {str(e)}")
+            raise ValueError(f"Failed to fetch Rosen Bridge status: {str(e)}") from e
 
     def build_bridge_tx(self, to_chain: str, to_address: str, amount_erg: float, tokens: dict[str, int], wallet: Any) -> dict[str, Any]:
         """
