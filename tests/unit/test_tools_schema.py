@@ -41,7 +41,15 @@ def test_openai_tool_names():
     toolkit = make_toolkit()
     tools = toolkit.to_openai_tools()
     names = {t["function"]["name"] for t in tools}
-    required = {"get_wallet_balance", "get_erg_price", "get_swap_quote", "send_funds"}
+    required = {
+        "get_wallet_balance", 
+        "get_erg_price", 
+        "get_swap_quote", 
+        "send_funds",
+        "get_cash_pools",
+        "deposit_cash_to_pool",
+        "withdraw_cash_privately"
+    }
     assert required.issubset(names)
 
 
