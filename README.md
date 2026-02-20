@@ -1,4 +1,4 @@
-# ergo-agent 🤖⛓️
+# ergo-agent-sdk 🤖⛓️
 
 > **Open-source Python SDK for AI agents on the Ergo blockchain.**
 
@@ -19,7 +19,7 @@ Existing Ergo SDKs (ergpy, fleet-sdk, AppKit) are built for **human developers**
 ## Quickstart
 
 ```bash
-pip install ergo-agent
+pip install ergo-agent-sdk
 ```
 
 ### Read-only (no wallet needed)

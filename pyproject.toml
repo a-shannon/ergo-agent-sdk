@@ -58,7 +58,7 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/ergoplatform/ergo-agent-sdk"
-Documentation = "https://ergo-agent.readthedocs.io"
+Documentation = "https://ergo-agent-sdk.readthedocs.io"
 Repository = "https://github.com/ergoplatform/ergo-agent-sdk"
 Issues = "https://github.com/ergoplatform/ergo-agent-sdk/issues"
 
