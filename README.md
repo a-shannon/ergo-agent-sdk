@@ -5,7 +5,7 @@
 Give any LLM agent (Claude, GPT-4, LangChain, CrewAI...) the ability to read wallet balances, fetch live prices, swap tokens on Spectrum DEX — all autonomously, with built-in safety guardrails.
 
 [![PyPI version](https://badge.fury.io/py/ergo-agent-sdk.svg)](https://badge.fury.io/py/ergo-agent-sdk)
-[![Documentation Status](https://readthedocs.org/projects/ergo-agent/badge/?version=latest)](https://ergo-agent.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/ergo-agent-sdk/badge/?version=latest)](https://ergo-agent-sdk.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
@@ -41,7 +41,7 @@ price = toolkit.get_erg_price()
 
 ## Documentation
 
-The complete SDK documentation, tutorial, and API reference are available at [ergo-agent.readthedocs.io](https://ergo-agent.readthedocs.io/).
+The complete SDK documentation, tutorial, and API reference are available at [ergo-agent-sdk.readthedocs.io](https://ergo-agent-sdk.readthedocs.io/).
 
 ## Next Steps
 # Get a swap quote from Spectrum DEX
