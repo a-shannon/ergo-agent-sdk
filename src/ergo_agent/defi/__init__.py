@@ -2,8 +2,8 @@
 DeFi adapters for the Ergo Agent SDK.
 """
 from .oracle import OracleReader
-from .spectrum import SpectrumDEX
-from .sigmausd import SigmaUSD
 from .rosen import RosenBridge
+from .sigmausd import SigmaUSD
+from .spectrum import SpectrumDEX
 
 __all__ = ["OracleReader", "SpectrumDEX", "SigmaUSD", "RosenBridge"]

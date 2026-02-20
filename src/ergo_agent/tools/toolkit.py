@@ -31,11 +31,11 @@ from typing import Any
 
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
-from ergo_agent.defi.oracle import OracleReader
-from ergo_agent.defi.spectrum import SpectrumDEX
-from ergo_agent.defi.sigmausd import SigmaUSD
-from ergo_agent.defi.rosen import RosenBridge
 from ergo_agent.defi.cash_v3 import CashV3Client
+from ergo_agent.defi.oracle import OracleReader
+from ergo_agent.defi.rosen import RosenBridge
+from ergo_agent.defi.sigmausd import SigmaUSD
+from ergo_agent.defi.spectrum import SpectrumDEX
 from ergo_agent.defi.treasury import ErgoTreasury
 from ergo_agent.tools.safety import SafetyConfig, SafetyViolation
 
@@ -174,7 +174,7 @@ class ErgoToolkit:
         Returns Reserve Ratio and minting prices for SigUSD/SigRSV.
         """
         return self._sigmausd.get_bank_state()
-        
+
     def get_rosen_bridge_status(self) -> dict[str, Any]:
         """
         Get the current Total Value Locked (TVL) and supported chains for Rosen Bridge.
@@ -334,15 +334,15 @@ class ErgoToolkit:
         tx = TransactionBuilder(self._node, self._wallet).mint_token(
             name=name, description=description, amount=amount, decimals=decimals
         ).build()
-        
+
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
 
         self._safety.record_action(erg_spent=(MIN_BOX_VALUE_NANOERG * 2) / NANOERG_PER_ERG)
-        
+
         # In Ergo, token ID is exactly the first input's boxId
         new_token_id = tx["inputs"][0]["boxId"]
-        
+
         logger.info(f"Minted token '{name}' (ID: {new_token_id}) -- tx: {tx_id}")
         return {
             "status": "submitted",
@@ -406,11 +406,11 @@ class ErgoToolkit:
         Bridge ERG or tokens to another blockchain via Rosen Bridge.
         """
         tokens = tokens or {}
-        
+
         # Verify sending limits to the bridge contract
         self._safety.validate_rate_limit()
         self._safety.validate_send(amount_erg=amount_erg, destination="Rosen Bridge")
-        
+
         if self._safety.dry_run:
              return {
                  "status": "dry_run",
@@ -419,11 +419,11 @@ class ErgoToolkit:
                  "destination_chain": to_chain,
                  "destination_address": to_address
              }
-             
+
         tx = self._rosen.build_bridge_tx(to_chain, to_address, amount_erg, tokens, self._wallet)
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
-        
+
         self._safety.record_action(erg_spent=amount_erg)
         return {
             "status": "success",
@@ -440,10 +440,10 @@ class ErgoToolkit:
         state = self._sigmausd.get_bank_state()
         cost_erg = (amount_sigusd * state["sigusd_price_nanoerg"] * 1.02) / 1e9
         self._safety.validate_send(amount_erg=cost_erg, destination="SigmaUSD Bank")
-        
+
         if self._safety.dry_run:
              return {"status": "dry_run", "would_mint": amount_sigusd, "cost_erg": cost_erg}
-             
+
         tx = self._sigmausd.build_mint_sigusd_tx(amount_sigusd, self._wallet)
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
@@ -457,7 +457,7 @@ class ErgoToolkit:
         self._safety.validate_rate_limit()
         if self._safety.dry_run:
              return {"status": "dry_run", "would_redeem": amount_sigusd}
-             
+
         tx = self._sigmausd.build_redeem_sigusd_tx(amount_sigusd, self._wallet)
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
@@ -471,10 +471,10 @@ class ErgoToolkit:
         state = self._sigmausd.get_bank_state()
         cost_erg = (amount_sigrsv * state["sigrsv_price_nanoerg"] * 1.02) / 1e9
         self._safety.validate_send(amount_erg=cost_erg, destination="SigmaUSD Bank")
-        
+
         if self._safety.dry_run:
              return {"status": "dry_run", "would_mint": amount_sigrsv, "cost_erg": cost_erg}
-             
+
         tx = self._sigmausd.build_mint_sigrsv_tx(amount_sigrsv, self._wallet)
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
@@ -488,7 +488,7 @@ class ErgoToolkit:
         self._safety.validate_rate_limit()
         if self._safety.dry_run:
              return {"status": "dry_run", "would_redeem": amount_sigrsv}
-             
+
         tx = self._sigmausd.build_redeem_sigrsv_tx(amount_sigrsv, self._wallet)
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
@@ -499,7 +499,7 @@ class ErgoToolkit:
         Create a new funding proposal for an Ergo Treasury or MultiSig wallet.
         """
         self._safety.validate_rate_limit()
-        
+
         # We need a small amount of ERG (0.01) to fund the proposal box
         if self._safety.dry_run:
             return {
@@ -509,7 +509,7 @@ class ErgoToolkit:
                 "amount_erg": amount_erg,
                 "description": description
             }
-            
+
         tx = self._treasury.build_proposal_tx(treasury_address, target_address, amount_erg, description, self._wallet)
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)

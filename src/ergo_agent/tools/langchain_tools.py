@@ -96,7 +96,7 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         """Get the current global TVL and supported chains of the Rosen Bridge."""
         import json
         return json.dumps(toolkit.get_rosen_bridge_status())
-        
+
     @lc_tool
     def mint_token(name: str, description: str, amount: int, decimals: int) -> str:
         """

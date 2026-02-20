@@ -12,10 +12,10 @@ from ergo_agent.core.builder import TransactionBuilder, TransactionBuilderError
 from ergo_agent.core.models import Balance, Box, SwapQuote, Token, Transaction
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.privacy import (
+    NOTE_CONTRACT_SCRIPT,
     NUMS_H_HEX,
     POOL_DEPOSIT_SCRIPT,
     POOL_WITHDRAW_SCRIPT,
-    NOTE_CONTRACT_SCRIPT,
     build_pool_deposit_tx,
     build_pool_withdraw_tx,
 )

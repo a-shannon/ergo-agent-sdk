@@ -6,12 +6,10 @@ import pytest
 
 from ergo_agent.core.builder import (
     MIN_BOX_VALUE_NANOERG,
-    MIN_FEE_NANOERG,
     TransactionBuilder,
     TransactionBuilderError,
 )
 from ergo_agent.core.models import Box, Token
-
 
 # ---------------------------------------------------------------------------
 # Mocks
@@ -330,10 +328,10 @@ class TestMintToken:
 
         # Check registers (R4, R5, R6)
         regs = mint_output["additionalRegisters"]
-        
+
         # "AgentTestToken" -> bytes length 14 (hex 0e)
-        assert regs["R4"] == "0e" + f"{14:02x}" + "AgentTestToken".encode("utf-8").hex()
+        assert regs["R4"] == "0e" + f"{14:02x}" + b"AgentTestToken".hex()
         # "Testing mint token" -> bytes length 18 (hex 12)
-        assert regs["R5"] == "0e" + f"{18:02x}" + "Testing mint token".encode("utf-8").hex()
+        assert regs["R5"] == "0e" + f"{18:02x}" + b"Testing mint token".hex()
         # Decimals "4" -> bytes length 1 (hex 01)
         assert regs["R6"] == "0e0134"

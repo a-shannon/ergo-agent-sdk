@@ -69,7 +69,6 @@ class TestAddressValidation:
         assert is_valid_address("1111") is False
 
     def test_validate_raises_on_invalid(self):
-        from ergo_agent.core.address import AddressError
         with pytest.raises(AddressError):
             validate_address("NotAnAddress123")
 

@@ -157,12 +157,12 @@ def find_optimal_pool(
             continue
 
         # Check capacity: number of keys in R4 < maxDeposits in R7
-        # Note: R4 is a Coll[GroupElement], ErgoNode API typically returns 
-        # heavily typed JSON, but for simplicity assuming we can estimate size 
+        # Note: R4 is a Coll[GroupElement], ErgoNode API typically returns
+        # heavily typed JSON, but for simplicity assuming we can estimate size
         # or parse the Coll. We'll do a basic check here.
         keys_str = box.additional_registers.get("R4", "")
         max_n = int(box.additional_registers.get("R7", "16"))
-        
+
         # A rough estimate: if it's full, we skip.
         # Ergo API Coll[GroupElement] string hex format contains length headers.
         # This is a basic safeguard; true parsing requires sigmastate deserialization.

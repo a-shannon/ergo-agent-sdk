@@ -3,8 +3,9 @@ Quick live integration test script.
 Run: python tests/live_check.py
 """
 from ergo_agent import ErgoNode
-from ergo_agent.tools import ErgoToolkit, SafetyConfig
 from ergo_agent.core.wallet import Wallet
+from ergo_agent.tools import ErgoToolkit, SafetyConfig
+
 
 def main():
     node = ErgoNode(timeout=30.0)

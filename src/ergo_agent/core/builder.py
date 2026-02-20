@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from ergo_lib_python.chain import Constant
+
 from ergo_agent.core.address import address_to_ergo_tree, validate_address
 from ergo_agent.core.models import NANOERG_PER_ERG, Box
-from ergo_lib_python.chain import Constant
 
 # Ergo minimum fee — 0.0011 ERG in nanoERG
 MIN_FEE_NANOERG = 1_100_000
@@ -205,7 +206,7 @@ class TransactionBuilder:
         """
         # Total nanoERG needed (outputs + fee)
         total_needed_erg = sum(o["amount_nanoerg"] for o in self._outputs) + self._fee_nanoerg
-        
+
         # Calculate total tokens needed
         tokens_needed: dict[str, int] = {}
         for out in self._outputs:
@@ -279,7 +280,7 @@ class TransactionBuilder:
             raise TransactionBuilderError(
                 f"Insufficient funds: have {balance_erg:.4f} ERG, need {needed_erg:.4f} ERG."
             )
-            
+
         change_tokens: dict[str, int] = {}
         for t_id, input_amt in total_input_tokens.items():
             spent = tokens_needed.get(t_id, 0)
@@ -316,10 +317,10 @@ class TransactionBuilder:
                 elif out["type"] == "mint_token":
                     if not input_entries:
                         raise TransactionBuilderError("Cannot mint a token without inputs (wallet is empty).")
-                    
+
                     new_token_id = input_entries[0]["boxId"]
                     box["assets"] = [{"tokenId": new_token_id, "amount": out["token_amount"]}]
-                    
+
                     box["additionalRegisters"] = {
                         "R4": bytes(Constant(out["name"].encode("utf-8"))).hex(),
                         "R5": bytes(Constant(out["description"].encode("utf-8"))).hex(),
@@ -342,7 +343,7 @@ class TransactionBuilder:
                 # We need a change box for tokens, but don't have enough ERG to satisfy Ergo box minimums.
                 # A robust algorithm would select another UTXO box here. Fast fix: throw an error guiding the user.
                 raise TransactionBuilderError("Insufficient ERG change to create a token change box. Send slightly less ERG or add more UTXOs.")
-                
+
             change_assets = [{"tokenId": t_id, "amount": amt} for t_id, amt in change_tokens.items()]
             outputs.append({
                 "value": change_nanoerg,
@@ -373,25 +374,25 @@ class TransactionBuilder:
         selected = []
         total_erg = 0
         total_tokens: dict[str, int] = {}
-        
+
         # Sort boxes by ERG value descending for simple selection
         for box in sorted(available_boxes, key=lambda b: b.value, reverse=True):
             # Check if we still need anything
             erg_satisfied = total_erg >= amount_needed_erg
             tokens_satisfied = all(total_tokens.get(t_id, 0) >= needed for t_id, needed in tokens_needed.items())
-            
+
             if erg_satisfied and tokens_satisfied:
                 break
-                
+
             selected.append(box)
             total_erg += box.value
             for t in box.tokens:
                 total_tokens[t.token_id] = total_tokens.get(t.token_id, 0) + t.amount
-                
+
         # Final check
         if total_erg < amount_needed_erg:
             raise TransactionBuilderError(f"Insufficient ERG: need {amount_needed_erg / NANOERG_PER_ERG:.4f}, have {total_erg / NANOERG_PER_ERG:.4f}")
-            
+
         for t_id, needed in tokens_needed.items():
             if total_tokens.get(t_id, 0) < needed:
                 raise TransactionBuilderError(f"Insufficient token {t_id}: need {needed}, have {total_tokens.get(t_id, 0)}")

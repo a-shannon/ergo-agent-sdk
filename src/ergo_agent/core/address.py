@@ -16,6 +16,7 @@ Reference: https://docs.ergoplatform.com/dev/wallet/address/
 
 import ergo_lib_python.chain as ergo_chain
 
+
 class AddressError(Exception):
     """Raised for invalid Ergo addresses."""
     pass
@@ -69,10 +70,10 @@ def get_address_type(address: str) -> str:
     """Return a human-readable address type."""
     try:
         addr = ergo_chain.Address(address)
-        
+
         network = "mainnet" if is_mainnet_address(address) else "testnet"
         tree_hex = bytes(addr.ergo_tree()).hex()
-        
+
         if tree_hex.startswith("0008cd"):
             addr_type = "P2PK"
         elif addr.to_str(ergo_chain.NetworkPrefix.Mainnet).startswith("8") or addr.to_str(ergo_chain.NetworkPrefix.Testnet).startswith("8"):
@@ -80,7 +81,7 @@ def get_address_type(address: str) -> str:
             addr_type = "P2SH"
         else:
             addr_type = "P2S"
-            
+
         return f"{network}-{addr_type}"
     except Exception:
         return "invalid"
@@ -88,7 +89,7 @@ def get_address_type(address: str) -> str:
 def address_to_ergo_tree(address: str, node_url: str = "ignored") -> str:
     """
     Convert an Ergo address to its ErgoTree hex representation.
-    
+
     Uses natively compiled `ergo_lib` rust bindings to generate the exact ErgoTree
     offline, eliminating the need to query the node API.
 
