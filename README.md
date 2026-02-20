@@ -92,8 +92,13 @@ lc_tools = toolkit.to_langchain_tools()
 | `get_swap_quote` | Spectrum DEX swap quote | No |
 | `get_mempool_status` | Pending transactions | No |
 | `get_safety_status` | Current spending limits & usage | No |
-| `send_erg` | Send ERG to an address | Yes |
+| `send_funds` | Send ERG and/or native tokens to an address | Yes |
 | `swap_erg_for_token` | Execute a swap on Spectrum DEX | Yes |
+| `mint_sigusd` | Mint SigmaUSD stablecoins via AgeUSD Bank | Yes |
+| `redeem_sigusd` | Redeem SigmaUSD to ERG | Yes |
+| `mint_sigmrsv` | Mint ReserveCoins (Long ERG) | Yes |
+| `redeem_sigmrsv` | Redeem ReserveCoins | Yes |
+| `bridge_assets` | Bridge assets to other chains via Rosen Bridge | Yes |
 
 ---
 
@@ -140,8 +145,8 @@ This is an open-source project for the Ergo ecosystem. PRs welcome.
 
 **Roadmap:**
 - v0.1.0 — Core + Oracle + Spectrum + Tool schemas
-- v0.2.x — Advanced Transaction Builder + Privacy primitives (Ring Signatures) *(current)*
-- v0.3.x — SigmaUSD + Rosen Bridge adapters + Treasury contracts
+- v0.2.x — Advanced Transaction Builder + Privacy primitives (Ring Signatures)
+- v0.3.x — SigmaUSD + Rosen Bridge adapters + Treasury contracts *(current)*
 
 ---
 

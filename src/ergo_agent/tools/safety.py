@@ -33,7 +33,7 @@ class SafetyConfig:
     """
     max_erg_per_tx: float = 10.0
     max_erg_per_day: float = 50.0
-    allowed_contracts: list[str] = field(default_factory=lambda: ["spectrum", "sigmausd"])
+    allowed_contracts: list[str] = field(default_factory=lambda: ["spectrum", "sigmausd", "rosen"])
     rate_limit_per_hour: int = 20
     dry_run: bool = False
 

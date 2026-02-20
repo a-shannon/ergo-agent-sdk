@@ -14,6 +14,6 @@ def test_get_bridge_status(rosen_client):
     assert "global_tvl_usd" in state
     assert state["global_tvl_usd"] > 0
     assert "supported_chains" in state
-    assert "Ergo" in state["supported_chains"]
+    assert "Cardano" in state["supported_chains"]
     assert "chain_tvls_usd" in state
-    assert "Ergo" in state["chain_tvls_usd"]
+    assert "Cardano" in state["chain_tvls_usd"]
