@@ -13,6 +13,8 @@ build:
         - python -m pip install -e ".[dev]"
         - python -m pip install mkdocs-material "mkdocs<2.0" mkdocstrings[python] pymdown-extensions
         - python -m mkdocs build
+        - mkdir -p $READTHEDOCS_OUTPUT/html
+        - cp -R site/* $READTHEDOCS_OUTPUT/html/
 
 mkdocs:
   configuration: mkdocs.yml
