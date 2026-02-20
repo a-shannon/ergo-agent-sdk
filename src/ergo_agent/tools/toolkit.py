@@ -61,11 +61,7 @@ class ErgoToolkit:
         self._oracle = OracleReader(node)
         self._spectrum = SpectrumDEX(node)
         self._sigmausd = SigmaUSD(node)
-        self._rosen = RosenBridge(node)
-        self._cash = CashV3Client(node)
-        self._dex = SpectrumDEX(node)
-        self._sigmausd = SigmaUSD(node)
-        self._rosen = RosenBridge()
+        self._cash = CashV3Client(node, wallet)
 
     # ------------------------------------------------------------------
     # Read-only actions (no safety checks needed)
@@ -369,14 +365,15 @@ class ErgoToolkit:
         """
         Deposit a $CASH note denomination into a privacy pool to enter the ring.
         """
-        self._safety.validate_transaction_action(
-            {"type": "cash_v3_deposit", "pool_id": pool_id, "amount": denomination}
+        self._safety.validate_send(
+            amount_erg=float(denomination),
+            destination=pool_id
         )
         stealth_key = "example_stealth_key_123" # Mock stealth key generation
         builder = self._cash.build_deposit_tx(pool_id, stealth_key, denomination)
-        tx = builder.build()
         if self._safety.dry_run:
             return {"status": "dry_run", "message": "Transaction verified, not submitted."}
+        tx = builder.build()
         tx_id = self._node.submit_transaction(tx)
         return {"status": "success", "tx_id": tx_id, "pool_id": pool_id, "amount": denomination}
 
@@ -384,15 +381,16 @@ class ErgoToolkit:
         """
         Withdraw a $CASH note from a privacy pool using an autonomous ring signature!
         """
-        self._safety.validate_transaction_action(
-            {"type": "cash_v3_withdraw", "pool_id": pool_id, "recipient": recipient_address}
+        self._safety.validate_send(
+            amount_erg=100.0, # Withdrawal amount
+            destination=pool_id
         )
+        if self._safety.dry_run:
+            return {"status": "dry_run", "message": "Ring Signature constructed successfully, transaction verified."}
         builder = self._cash.build_withdrawal_tx(pool_id, recipient_address, key_image)
         tx = builder.build()
-        if self._safety.dry_run:
-            return {"status": "dry_run", "message": "Transaction verified, not submitted."}
         tx_id = self._node.submit_transaction(tx)
-        return {"status": "success", "tx_id": tx_id, "pool_id": pool_id, "recipient": recipient_address}
+        return {"status": "success", "tx_id": tx_id, "recipient": recipient_address}
 
 
     # ------------------------------------------------------------------

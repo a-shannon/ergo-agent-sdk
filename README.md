@@ -101,7 +101,7 @@ lc_tools = toolkit.to_langchain_tools()
 
 ```
 ergo_agent/
-├── core/        # ErgoNode client, Wallet, TransactionBuilder, Address utilities, Privacy ($CASH v3)
+├── core/        # ErgoNode client, Wallet, TransactionBuilder, Address utilities, Cryptography & Privacy primitives
 ├── defi/        # Oracle Pool v2, Spectrum DEX adapters
 └── tools/       # LLM tool schemas (OpenAI / Anthropic / LangChain) + safety layer
 ```
@@ -140,8 +140,8 @@ This is an open-source project for the Ergo ecosystem. PRs welcome.
 
 **Roadmap:**
 - v0.1.0 — Core + Oracle + Spectrum + Tool schemas
-- v0.2.0 — $CASH v3 Privacy Protocols (Ring Signatures) *(current)*
-- v0.3.0 — SigmaUSD + Rosen Bridge adapters + Treasury contracts
+- v0.2.x — Advanced Transaction Builder + Privacy primitives (Ring Signatures) *(current)*
+- v0.3.x — SigmaUSD + Rosen Bridge adapters + Treasury contracts
 
 ---
 

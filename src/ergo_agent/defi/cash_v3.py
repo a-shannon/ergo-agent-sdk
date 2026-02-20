@@ -13,8 +13,9 @@ from ergo_agent.core.builder import TransactionBuilder
 from ergo_agent.core.models import Box
 
 class CashV3Client:
-    def __init__(self, node: ErgoNode = None):
+    def __init__(self, node: ErgoNode = None, wallet=None):
         self.node = node or ErgoNode()
+        self.wallet = wallet
         # In a real environment, this is the P2S proxy address or compiled tree
         self.MOCK_CASH_V3_POOL_ERGO_TREE = "100204040402d8..." 
 
@@ -95,7 +96,7 @@ class CashV3Client:
         Construct a transaction depositing $CASH into a privacy pool.
         This appends the user's stealth key onto the pool's R4 array.
         """
-        builder = TransactionBuilder()
+        builder = TransactionBuilder(self.node, self.wallet)
         # Mock logic
         builder.with_input(pool_box_id)
         # Add output with updated R4
@@ -116,7 +117,7 @@ class CashV3Client:
         Construct a withdrawal transaction out of the privacy pool using
         the dynamic `atLeast(1, keys.map(...))` Ring Signature mechanism.
         """
-        builder = TransactionBuilder()
+        builder = TransactionBuilder(self.node, self.wallet)
         from ergo_lib_python.chain import Constant
         
         # We natively supply the Key Image as a PyO3 Constant Context Extension
