@@ -42,13 +42,20 @@ def build_anthropic_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
             },
         },
         {
-            "name": "send_erg",
-            "description": "Send ERG to an Ergo address. Subject to safety limits.",
+            "name": "send_funds",
+            "description": "Send ERG and optionally multiple tokens to an Ergo address. Subject to safety limits.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "to": {"type": "string", "description": "Destination Ergo address"},
                     "amount_erg": {"type": "number", "description": "Amount in ERG"},
+                    "tokens": {
+                        "type": "object",
+                        "description": "Optional dictionary mapping Token IDs to their raw integer amounts.",
+                        "additionalProperties": {
+                            "type": "integer"
+                        }
+                    },
                 },
                 "required": ["to", "amount_erg"],
             },
@@ -75,5 +82,65 @@ def build_anthropic_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
             "name": "get_safety_status",
             "description": "Get current safety limits and remaining daily budget.",
             "input_schema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "get_sigmausd_state",
+            "description": "Get the current state of the AgeUSD protocol (SigmaUSD/SigmaRSV). Returns Reserve Ratio and Prices.",
+            "input_schema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "get_rosen_bridge_status",
+            "description": "Get the current TVL and supported chains for the Rosen Bridge on Ergo.",
+            "input_schema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "mint_token",
+            "description": "Mint a new native Ergo token (EIP-004 compliant).",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Token name"},
+                    "description": {"type": "string", "description": "Token description"},
+                    "amount": {"type": "integer", "description": "Total supply"},
+                    "decimals": {"type": "integer", "description": "Decimal places"},
+                },
+                "required": ["name", "description", "amount", "decimals"],
+            },
+        },
+        {
+            "name": "get_cash_pools",
+            "description": "Scan the blockchain for active $CASH v3 privacy pools.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "denomination": {"type": "integer", "description": "The token denomination (e.g., 100, 1000)"},
+                },
+                "required": ["denomination"],
+            },
+        },
+        {
+            "name": "deposit_cash_to_pool",
+            "description": "Deposit a $CASH note denomination into a privacy pool to enter the ring.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "pool_id": {"type": "string", "description": "The UTXO ID of the pool"},
+                    "denomination": {"type": "integer", "description": "The note denomination jumping into the pool."},
+                },
+                "required": ["pool_id", "denomination"],
+            },
+        },
+        {
+            "name": "withdraw_cash_privately",
+            "description": "Withdraw a $CASH note from a privacy pool using an autonomous ring signature!",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "pool_id": {"type": "string", "description": "The privacy pool to withdraw from."},
+                    "recipient_address": {"type": "string", "description": "Destination EIP-41 stealth address."},
+                    "key_image": {"type": "string", "description": "Hex string key image preventing double withdrawal."},
+                },
+                "required": ["pool_id", "recipient_address", "key_image"],
+            },
         },
     ]

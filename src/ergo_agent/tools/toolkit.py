@@ -33,6 +33,9 @@ from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
 from ergo_agent.defi.oracle import OracleReader
 from ergo_agent.defi.spectrum import SpectrumDEX
+from ergo_agent.defi.sigmausd import SigmaUSD
+from ergo_agent.defi.rosen import RosenBridge
+from ergo_agent.defi.cash_v3 import CashV3Client
 from ergo_agent.tools.safety import SafetyConfig, SafetyViolation
 
 logger = logging.getLogger("ergo_agent.toolkit")
@@ -56,7 +59,13 @@ class ErgoToolkit:
         self._wallet = wallet
         self._safety = safety or SafetyConfig()
         self._oracle = OracleReader(node)
+        self._spectrum = SpectrumDEX(node)
+        self._sigmausd = SigmaUSD(node)
+        self._rosen = RosenBridge(node)
+        self._cash = CashV3Client(node)
         self._dex = SpectrumDEX(node)
+        self._sigmausd = SigmaUSD(node)
+        self._rosen = RosenBridge()
 
     # ------------------------------------------------------------------
     # Read-only actions (no safety checks needed)
@@ -160,39 +169,54 @@ class ErgoToolkit:
         """
         return self._safety.get_status()
 
+    def get_sigmausd_state(self) -> dict[str, Any]:
+        """
+        Get the current state of the SigmaUSD Protocol (AgeUSD).
+        Returns Reserve Ratio and minting prices for SigUSD/SigRSV.
+        """
+        return self._sigmausd.get_bank_state()
+        
+    def get_rosen_bridge_status(self) -> dict[str, Any]:
+        """
+        Get the current Total Value Locked (TVL) and supported chains for Rosen Bridge.
+        """
+        return self._rosen.get_bridge_status()
+
     # ------------------------------------------------------------------
     # State-changing actions (validated by safety layer)
     # ------------------------------------------------------------------
 
-    def send_erg(self, to: str, amount_erg: float) -> dict[str, Any]:
+    def send_funds(self, to: str, amount_erg: float, tokens: dict[str, int] | None = None) -> dict[str, Any]:
         """
-        Send ERG to an address.
+        Send ERG and optionally multiple tokens to an address.
 
         Args:
             to: Destination Ergo address
             amount_erg: Amount to send in ERG
+            tokens: Optional dict mapping token IDs to amounts
 
         Returns:
             dict with tx_id (or dry_run confirmation)
         """
+        tokens = tokens or {}
         self._safety.validate_rate_limit()
         self._safety.validate_send(amount_erg, to)
 
         if self._safety.dry_run:
-            logger.info(f"[DRY RUN] Would send {amount_erg} ERG to {to}")
-            return {"status": "dry_run", "would_send_erg": amount_erg, "to": to}
+            logger.info(f"[DRY RUN] Would send {amount_erg} ERG and {len(tokens)} tokens to {to}")
+            return {"status": "dry_run", "would_send_erg": amount_erg, "would_send_tokens": tokens, "to": to}
 
         if self._wallet.read_only:
             return {"status": "error", "message": "Wallet is read-only — cannot send transactions."}
 
         from ergo_agent.core.builder import TransactionBuilder
-        tx = TransactionBuilder(self._node, self._wallet).send(to, amount_erg).build()
+        tx = TransactionBuilder(self._node, self._wallet).send_funds(to, amount_erg, tokens).build()
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
 
         self._safety.record_action(erg_spent=amount_erg)
-        logger.info(f"Sent {amount_erg} ERG to {to} — tx: {tx_id}")
-        return {"status": "submitted", "tx_id": tx_id, "amount_erg": amount_erg, "to": to}
+        logger.info(f"Sent {amount_erg} ERG and {len(tokens)} tokens to {to} — tx: {tx_id}")
+        return {"status": "submitted", "tx_id": tx_id, "amount_erg": amount_erg, "tokens": tokens, "to": to}
 
     def swap_erg_for_token(
         self,
@@ -277,6 +301,99 @@ class ErgoToolkit:
             "price_impact_pct": order["quote"]["price_impact_pct"],
         }
 
+    def mint_token(self, name: str, description: str, amount: int, decimals: int) -> dict[str, Any]:
+        """
+        Mint a new native Ergo token (EIP-004 compliant).
+
+        Args:
+            name: Token name (e.g. "MyToken")
+            description: Token description
+            amount: Total supply to mint
+            decimals: Number of decimal places (e.g. 0 for NFTs, 4 for fungible)
+
+        Returns:
+            dict with tx_id and the computed new token_id
+        """
+        self._safety.validate_rate_limit()
+        # Minting requires basic box minimum
+        from ergo_agent.core.builder import MIN_BOX_VALUE_NANOERG, NANOERG_PER_ERG
+        self._safety.validate_send(MIN_BOX_VALUE_NANOERG / NANOERG_PER_ERG, self._wallet.address)
+
+        if self._safety.dry_run:
+            logger.info(f"[DRY RUN] Would mint token '{name}' (supply {amount})")
+            return {
+                "status": "dry_run",
+                "name": name,
+                "amount": amount,
+                "decimals": decimals
+            }
+
+        if self._wallet.read_only:
+            return {"status": "error", "message": "Wallet is read-only -- cannot mint."}
+
+        from ergo_agent.core.builder import TransactionBuilder
+        tx = TransactionBuilder(self._node, self._wallet).mint_token(
+            name=name, description=description, amount=amount, decimals=decimals
+        ).build()
+        
+        signed = self._wallet.sign_transaction(tx, self._node)
+        tx_id = self._node.submit_transaction(signed)
+
+        self._safety.record_action(erg_spent=(MIN_BOX_VALUE_NANOERG * 2) / NANOERG_PER_ERG)
+        
+        # In Ergo, token ID is exactly the first input's boxId
+        new_token_id = tx["inputs"][0]["boxId"]
+        
+        logger.info(f"Minted token '{name}' (ID: {new_token_id}) -- tx: {tx_id}")
+        return {
+            "status": "submitted",
+            "tx_id": tx_id,
+            "token_id": new_token_id,
+            "name": name,
+            "amount": amount
+        }
+
+
+    def get_cash_pools(self, denomination: int) -> list[dict[str, Any]]:
+        """
+        Scan the blockchain for active $CASH v3 pools.
+        Returns a list of pool IDs and their current anonymity ring sizes.
+        """
+        # Read-only operation; bypasses strict safety gate
+        pools = self._cash.get_active_pools(denomination)
+        for p in pools:
+            p['current_ring_size'] = self._cash.evaluate_pool_anonymity(p['pool_id'])
+        return pools
+
+    def deposit_cash_to_pool(self, pool_id: str, denomination: int) -> dict[str, Any]:
+        """
+        Deposit a $CASH note denomination into a privacy pool to enter the ring.
+        """
+        self._safety.validate_transaction_action(
+            {"type": "cash_v3_deposit", "pool_id": pool_id, "amount": denomination}
+        )
+        stealth_key = "example_stealth_key_123" # Mock stealth key generation
+        builder = self._cash.build_deposit_tx(pool_id, stealth_key, denomination)
+        tx = builder.build()
+        if self._safety.dry_run:
+            return {"status": "dry_run", "message": "Transaction verified, not submitted."}
+        tx_id = self._node.submit_transaction(tx)
+        return {"status": "success", "tx_id": tx_id, "pool_id": pool_id, "amount": denomination}
+
+    def withdraw_cash_privately(self, pool_id: str, recipient_address: str, key_image: str) -> dict[str, Any]:
+        """
+        Withdraw a $CASH note from a privacy pool using an autonomous ring signature!
+        """
+        self._safety.validate_transaction_action(
+            {"type": "cash_v3_withdraw", "pool_id": pool_id, "recipient": recipient_address}
+        )
+        builder = self._cash.build_withdrawal_tx(pool_id, recipient_address, key_image)
+        tx = builder.build()
+        if self._safety.dry_run:
+            return {"status": "dry_run", "message": "Transaction verified, not submitted."}
+        tx_id = self._node.submit_transaction(tx)
+        return {"status": "success", "tx_id": tx_id, "pool_id": pool_id, "recipient": recipient_address}
+
 
     # ------------------------------------------------------------------
     # Tool schema generators
@@ -311,8 +428,14 @@ class ErgoToolkit:
             "get_swap_quote": lambda i: self.get_swap_quote(**i),
             "get_mempool_status": lambda _: self.get_mempool_status(),
             "get_safety_status": lambda _: self.get_safety_status(),
-            "send_erg": lambda i: self.send_erg(**i),
+            "get_sigmausd_state": lambda _: self.get_sigmausd_state(),
+            "get_rosen_bridge_status": lambda _: self.get_rosen_bridge_status(),
+            "send_funds": lambda i: self.send_funds(**i),
             "swap_erg_for_token": lambda i: self.swap_erg_for_token(**i),
+            "mint_token": lambda i: self.mint_token(**i),
+            "get_cash_pools": lambda i: self.get_cash_pools(**i),
+            "deposit_cash_to_pool": lambda i: self.deposit_cash_to_pool(**i),
+            "withdraw_cash_privately": lambda i: self.withdraw_cash_privately(**i),
         }
 
         fn = tool_map.get(tool_name)

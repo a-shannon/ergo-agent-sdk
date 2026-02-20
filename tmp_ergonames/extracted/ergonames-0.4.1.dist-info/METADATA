@@ -1,0 +1,30 @@
+Metadata-Version: 2.1
+Name: ergonames
+Version: 0.4.1
+Summary: A SDK for resolving ErgoNames.
+Home-page: https://github.com/ergonames/ergo-names-python-sdk
+Author: ErgoNames
+Author-email: developer@ergonames.com
+Project-URL: Bug Tracker, https://github.com/ergonames/ergo-names-python-sdk/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# Ergo Names Python SDK
+
+### Example for resolving an ergoname
+
+```python
+name = "~balb";
+address = ergonames.resolve_ergoname(name);
+```
+
+### Example for address lookup
+
+```python
+address = "3WwKzFjZGrtKAV7qSCoJsZK9iJhLLrUa3uwd4yw52bVtDVv6j5TL";
+token_list = ergonames.reverse_search(address);
+```

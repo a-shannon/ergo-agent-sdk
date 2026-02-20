@@ -65,9 +65,9 @@ def build_openai_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
         {
             "type": "function",
             "function": {
-                "name": "send_erg",
+                "name": "send_funds",
                 "description": (
-                    "Send ERG to an Ergo address. "
+                    "Send ERG and optionally multiple tokens to an Ergo address. "
                     "Subject to safety limits (max per transaction, daily cap, rate limit). "
                     "Will be rejected if limits are exceeded."
                 ),
@@ -81,6 +81,13 @@ def build_openai_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
                         "amount_erg": {
                             "type": "number",
                             "description": "Amount to send in ERG",
+                        },
+                        "tokens": {
+                            "type": "object",
+                            "description": "Optional dictionary mapping Token IDs to their raw integer amounts.",
+                            "additionalProperties": {
+                                "type": "integer"
+                            }
                         },
                     },
                     "required": ["to", "amount_erg"],
@@ -133,6 +140,68 @@ def build_openai_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
                     "Check this to know remaining daily budget and rate limit before acting."
                 ),
                 "parameters": {"type": "object", "properties": {}, "required": []},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "mint_token",
+                "description": "Mint a new native Ergo token (EIP-004 compliant).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Token name"},
+                        "description": {"type": "string", "description": "Token description"},
+                        "amount": {"type": "integer", "description": "Total supply"},
+                        "decimals": {"type": "integer", "description": "Decimal places"},
+                    },
+                    "required": ["name", "description", "amount", "decimals"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_cash_pools",
+                "description": "Scan the blockchain for active $CASH v3 privacy pools.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "denomination": {"type": "integer", "description": "The token denomination (e.g., 100, 1000)"},
+                    },
+                    "required": ["denomination"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "deposit_cash_to_pool",
+                "description": "Deposit a $CASH note denomination into a privacy pool to enter the ring.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pool_id": {"type": "string", "description": "The UTXO ID of the pool"},
+                        "denomination": {"type": "integer", "description": "The note denomination jumping into the pool."},
+                    },
+                    "required": ["pool_id", "denomination"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "withdraw_cash_privately",
+                "description": "Withdraw a $CASH note from a privacy pool using an autonomous ring signature!",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pool_id": {"type": "string", "description": "The privacy pool to withdraw from."},
+                        "recipient_address": {"type": "string", "description": "Destination EIP-41 stealth address."},
+                        "key_image": {"type": "string", "description": "Hex string key image preventing double withdrawal."},
+                    },
+                    "required": ["pool_id", "recipient_address", "key_image"],
+                },
             },
         },
     ]

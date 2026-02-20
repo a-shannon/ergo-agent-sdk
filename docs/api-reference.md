@@ -41,6 +41,8 @@ Complete reference for all public classes and methods.
         - __init__
         - send
         - send_token
+        - send_funds
+        - mint_token
         - add_output_raw
         - with_input
         - build
@@ -57,6 +59,16 @@ Complete reference for all public classes and methods.
         - get_address_type
         - address_to_ergo_tree
         - AddressError
+
+### Privacy Protocols
+
+::: ergo_agent.core.privacy
+    options:
+      members:
+        - find_optimal_pool
+        - build_pool_deposit_tx
+        - build_pool_withdraw_tx
+        - NUMS_H_HEX
 
 ### Data Models
 

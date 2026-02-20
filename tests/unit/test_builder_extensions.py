@@ -297,3 +297,43 @@ class TestPrivacyConstants:
         """The NUMS H hex should appear in the withdrawal script."""
         from ergo_agent.core.privacy import NUMS_H_HEX, POOL_WITHDRAW_SCRIPT
         assert NUMS_H_HEX in POOL_WITHDRAW_SCRIPT
+
+# ---------------------------------------------------------------------------
+# Tests: Token Minting
+# ---------------------------------------------------------------------------
+
+class TestMintToken:
+    """Test EIP-004 token minting transaction building."""
+
+    def test_mint_token_creates_correct_output(self) -> None:
+        """mint_token() should create an output with the correct assets and registers."""
+        wallet_box = _make_wallet_box(value=10_000_000_000)
+        node = MockNode(unspent=[wallet_box])
+        wallet = MockWallet()
+        builder = _mock_builder(node, wallet)
+
+        tx = builder.mint_token(
+            name="AgentTestToken",
+            description="Testing mint token",
+            amount=1_000_000,
+            decimals=4,
+        ).build()
+
+        # The new token ID is the ID of the first input
+        new_token_id = tx["inputs"][0]["boxId"]
+        assert new_token_id == "wallet_box_1"
+
+        # The output box (index 0) should hold the minted token
+        mint_output = tx["outputs"][0]
+        assert mint_output["assets"][0]["tokenId"] == new_token_id
+        assert mint_output["assets"][0]["amount"] == 1_000_000
+
+        # Check registers (R4, R5, R6)
+        regs = mint_output["additionalRegisters"]
+        
+        # "AgentTestToken" -> bytes length 14 (hex 0e)
+        assert regs["R4"] == "0e" + f"{14:02x}" + "AgentTestToken".encode("utf-8").hex()
+        # "Testing mint token" -> bytes length 18 (hex 12)
+        assert regs["R5"] == "0e" + f"{18:02x}" + "Testing mint token".encode("utf-8").hex()
+        # Decimals "4" -> bytes length 1 (hex 01)
+        assert regs["R6"] == "0e0134"

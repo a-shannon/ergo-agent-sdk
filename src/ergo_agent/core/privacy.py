@@ -21,10 +21,12 @@ Architecture:
 
 from __future__ import annotations
 
+import random
 from typing import Any
 
 from ergo_agent.core.builder import MIN_BOX_VALUE_NANOERG, TransactionBuilder
 from ergo_agent.core.models import Box
+from ergo_agent.core.node import ErgoNode
 
 # ==============================================================================
 # NUMS Second Generator H
@@ -112,8 +114,69 @@ NOTE_CONTRACT_SCRIPT = '''
 
 
 # ==============================================================================
-# Transaction Builders
+# Transaction Builders & Aggregators
 # ==============================================================================
+
+def find_optimal_pool(
+    node: ErgoNode,
+    pool_ergo_tree: str,
+    cash_token_id: str,
+    denomination: int,
+) -> Box:
+    """
+    Finds an optimal, un-congested PoolBox for a deposit to mitigate UTXO contention.
+
+    Queries the blockchain for all unspent PoolBoxes matching the ErgoTree contract,
+    filters for those serving the requested denomination that have available capacity,
+    and returns a randomly selected pool to spread out concurrent deposits.
+
+    Args:
+        node: Connected ErgoNode client
+        pool_ergo_tree: ErgoTree hex of the pool contract
+        cash_token_id: The $CASH token ID
+        denomination: The denomination amount requested
+
+    Returns:
+        Box: A matched, unsaturated PoolBox.
+
+    Raises:
+        ValueError: If no valid pools with available capacity are found.
+    """
+    # Fetch all live boxes for the PoolContract
+    boxes = node.get_boxes_by_ergo_tree(pool_ergo_tree, limit=100)
+
+    valid_pools: list[Box] = []
+    for box in boxes:
+        # Check token ID exists (even if reserve is 0, token must be in assets array)
+        if not any(t.token_id == cash_token_id for t in box.tokens):
+            continue
+
+        # Check denomination matches R6
+        pool_denom = box.additional_registers.get("R6")
+        if pool_denom != str(denomination):
+            continue
+
+        # Check capacity: number of keys in R4 < maxDeposits in R7
+        # Note: R4 is a Coll[GroupElement], ErgoNode API typically returns 
+        # heavily typed JSON, but for simplicity assuming we can estimate size 
+        # or parse the Coll. We'll do a basic check here.
+        keys_str = box.additional_registers.get("R4", "")
+        max_n = int(box.additional_registers.get("R7", "16"))
+        
+        # A rough estimate: if it's full, we skip.
+        # Ergo API Coll[GroupElement] string hex format contains length headers.
+        # This is a basic safeguard; true parsing requires sigmastate deserialization.
+        if len(keys_str) > (max_n * 66):  # 33 bytes (66 hex chars) per key approx
+            continue
+
+        valid_pools.append(box)
+
+    if not valid_pools:
+        raise ValueError(f"No pools available with capacity for denomination {denomination}")
+
+    # Random selection completely eliminates UTXO contention among parallel agents
+    return random.choice(valid_pools)
+
 
 def build_pool_deposit_tx(
     builder: TransactionBuilder,

@@ -252,7 +252,7 @@ class ErgoNode:
                 token_id=t["tokenId"],
                 amount=int(t["amount"]),
                 name=t.get("name"),
-                decimals=int(t.get("decimals", 0)),
+                decimals=int(t.get("decimals") or 0),
             )
             for t in data.get("assets", [])
         ]

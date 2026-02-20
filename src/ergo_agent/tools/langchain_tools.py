@@ -48,14 +48,15 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         ))
 
     @lc_tool
-    def send_erg(to: str, amount_erg: float) -> str:
+    def send_funds(to: str, amount_erg: float, tokens: dict[str, int] | None = None) -> str:
         """
-        Send ERG to an Ergo address.
+        Send ERG and optionally multiple tokens to an Ergo address.
         to: destination address (starts with '9')
         amount_erg: amount to send in ERG
+        tokens: optional dict mapping token IDs to amounts
         """
         import json
-        return json.dumps(toolkit.send_erg(to=to, amount_erg=amount_erg))
+        return json.dumps(toolkit.send_funds(to=to, amount_erg=amount_erg, tokens=tokens))
 
     @lc_tool
     def swap_erg_for_token(token_out: str, amount_erg: float, max_slippage_pct: float = 1.0) -> str:
@@ -84,12 +85,41 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         import json
         return json.dumps(toolkit.get_safety_status())
 
+    @lc_tool
+    def get_sigmausd_state() -> str:
+        """Get the current State of the SigmaUSD Protocol (reserve ratio and prices)."""
+        import json
+        return json.dumps(toolkit.get_sigmausd_state())
+
+    @lc_tool
+    def get_rosen_bridge_status() -> str:
+        """Get the current global TVL and supported chains of the Rosen Bridge."""
+        import json
+        return json.dumps(toolkit.get_rosen_bridge_status())
+        
+    @lc_tool
+    def mint_token(name: str, description: str, amount: int, decimals: int) -> str:
+        """
+        Mint a new native Ergo token (EIP-004 compliant).
+        name: Name of the new token (e.g. 'AgentCoin')
+        description: Short description of the token
+        amount: Total integer supply to mint
+        decimals: Number of decimal places (e.g. 0 for NFTs, 4 for standard)
+        """
+        import json
+        return json.dumps(toolkit.mint_token(
+            name=name, description=description, amount=amount, decimals=decimals
+        ))
+
     return [
         get_wallet_balance,
         get_erg_price,
         get_swap_quote,
-        send_erg,
+        send_funds,
         swap_erg_for_token,
         get_mempool_status,
         get_safety_status,
+        get_sigmausd_state,
+        get_rosen_bridge_status,
+        mint_token,
     ]

@@ -1,5 +1,9 @@
-"""defi module init"""
-from ergo_agent.defi.oracle import ORACLE_NFT_IDS, OracleReader
-from ergo_agent.defi.spectrum import WELL_KNOWN_TOKENS, Pool, SpectrumDEX
+"""
+DeFi adapters for the Ergo Agent SDK.
+"""
+from .oracle import OracleReader
+from .spectrum import SpectrumDEX
+from .sigmausd import SigmaUSD
+from .rosen import RosenBridge
 
-__all__ = ["OracleReader", "ORACLE_NFT_IDS", "SpectrumDEX", "Pool", "WELL_KNOWN_TOKENS"]
+__all__ = ["OracleReader", "SpectrumDEX", "SigmaUSD", "RosenBridge"]

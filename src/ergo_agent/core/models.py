@@ -41,7 +41,33 @@ class Box(BaseModel):
     def value_erg(self) -> float:
         """ERG value (human-readable)."""
         return self.value / NANOERG_PER_ERG
+        
+    def decode_register(self, register_id: str) -> Any | None:
+        """
+        Dynamically decode a raw Box register hex string natively using ergo-lib-python's
+        `Constant.from_bytes` schema back into its typed Python equivalent.
 
+        Args:
+            register_id: The register to fetch (e.g. 'R4', 'R5')
+
+        Returns:
+            The parsed python value, or None if the register is missing or unparseable.
+        """
+        raw_val = self.additional_registers.get(register_id)
+        if not raw_val:
+            return None
+            
+        try:
+            # We import here to avoid circular dependencies with models.py
+            from ergo_lib_python.chain import Constant
+            
+            # The Node API returns registers as hex serialized bytes 
+            byte_val = bytes.fromhex(raw_val)
+            const = Constant.from_bytes(byte_val)
+            return const.value
+        except Exception:
+            # Optionally log decoding errors here in the future
+            return None
 
 class Balance(BaseModel):
     """Wallet balance summary."""
