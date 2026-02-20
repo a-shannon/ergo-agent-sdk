@@ -6,12 +6,12 @@
 
 ## What is ergo-agent?
 
-**ergo-agent** is an open-source Python SDK that lets AI agents (Claude, GPT-4, LangChain, CrewAI) autonomously read wallet balances, fetch live prices, and swap tokens on Spectrum DEX — with built-in safety guardrails so the agent can't drain a wallet.
+**ergo-agent-sdk** is an open-source Python SDK that gives AI agents (Claude, GPT-4, LangChain, CrewAI) secure, autonomous access to the Ergo blockchain. Agents can read balances, fetch prices, execute DEX swaps, mint stablecoins via SigmaUSD, and bridge assets cross-chain via the Rosen Bridge. 
 
 ## Install
 
 ```bash
-pip install ergo-agent
+pip install ergo-agent-sdk
 ```
 
 ## 5-Line Quickstart
@@ -35,10 +35,13 @@ That's it. No node required, no wallet keys, no setup. The public Explorer API i
 | Feature | Description |
 |---|---|
 | 🔍 **Read-only queries** | Balance, price, mempool — no keys needed |
-| 💱 **DEX integration** | Swap quotes and orders on Spectrum Finance |
+| 💱 **Spectrum DEX** | Swap quotes and orders on Spectrum Finance |
+| 🏦 **SigmaUSD Stablecoins** | Mint and redeem SigUSD and SigRSV reserves |
+| 🌉 **Rosen Bridge** | Cross-chain asset bridging out of Ergo |
+| 🏛️ **DAO Treasuries** | Draft proposals and execute multi-sig actions |
 | 📊 **Oracle prices** | Live ERG/USD from Oracle Pool v2 |
-| 🔧 **LLM-ready** | OpenAI, Anthropic, and LangChain tool schemas |
-| 🛡️ **Safety layer** | Per-tx limits, daily caps, rate limiting, contract whitelist |
+| 🔧 **LLM-ready** | OpenAI, Anthropic, and LangChain schemas |
+| 🛡️ **Safety layer** | Per-tx limits, daily caps, contract whitelists |
 | 🔑 **Wallet signing** | Sign transactions via Ergo node wallet API |
 
 ## Next Steps

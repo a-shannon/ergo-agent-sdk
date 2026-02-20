@@ -109,6 +109,37 @@ Complete reference for all public classes and methods.
         - build_swap_order
         - close
 
+### SigmaUSD
+
+::: ergo_agent.defi.sigmausd.SigmaUSD
+    options:
+      members:
+        - __init__
+        - get_bank_state
+        - build_mint_sigusd_tx
+        - build_mint_sigmrsv_tx
+        - build_redeem_sigusd_tx
+        - build_redeem_sigmrsv_tx
+
+### RosenBridge
+
+::: ergo_agent.defi.rosen.RosenBridge
+    options:
+      members:
+        - __init__
+        - get_bridge_status
+        - build_bridge_tx
+
+### ErgoTreasury
+
+::: ergo_agent.defi.treasury.ErgoTreasury
+    options:
+      members:
+        - __init__
+        - build_proposal_tx
+        - build_vote_tx
+        - build_execute_tx
+
 ---
 
 ## Tools
@@ -126,6 +157,12 @@ Complete reference for all public classes and methods.
         - get_safety_status
         - send_erg
         - swap_erg_for_token
+        - mint_sigusd
+        - redeem_sigusd
+        - mint_sigmrsv
+        - redeem_sigmrsv
+        - bridge_assets
+        - create_treasury_proposal
         - execute_tool
         - to_openai_tools
         - to_anthropic_tools
