@@ -1,0 +1,62 @@
+#!/bin/sh
+# Pre-commit hook for the Ergo Agent SDK
+# Blocks commits containing project-specific names that should not appear
+# in the generic SDK repository.
+#
+# Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+BLOCKED_PATTERNS=(
+    '\$CASH'
+    '\$MDD'
+    'Midday'
+    'Ergo Cash'
+    'ErgoCash'
+    'ergo-cash'
+    'ergo_cash'
+    'CashV[0-9]'
+    'CashPool'
+    'CashierBox'
+    'MiddayPool'
+    'MiddayNote'
+    'MiddayClient'
+)
+
+# Only check staged files (not the entire repo)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+ERRORS=0
+
+for pattern in "${BLOCKED_PATTERNS[@]}"; do
+    # Search staged content for blocked patterns
+    # Exclude files that legitimately contain these patterns (CI guards, hooks, cleanup scripts)
+    MATCHES=$(echo "$STAGED_FILES" | grep -v 'hooks/' | grep -v '_cleanup' | grep -v '.github/' | xargs grep -l "$pattern" 2>/dev/null)
+    
+    if [ -n "$MATCHES" ]; then
+        # Special case: allow "CASH.v3.second.generator.H.0" (crypto seed)
+        for file in $MATCHES; do
+            # Check if the match is ONLY the crypto seed
+            NON_SEED=$(grep "$pattern" "$file" | grep -v "CASH.v3.second.generator.H.0")
+            if [ -n "$NON_SEED" ]; then
+                echo "❌ BLOCKED: '$pattern' found in $file"
+                echo "   $NON_SEED"
+                ERRORS=1
+            fi
+        done
+    fi
+done
+
+if [ $ERRORS -ne 0 ]; then
+    echo ""
+    echo "══════════════════════════════════════════════════════"
+    echo "  COMMIT BLOCKED: Project-specific names detected!"
+    echo "  The SDK must remain generic. Remove all references"
+    echo "  to specific token projects before committing."
+    echo "══════════════════════════════════════════════════════"
+    exit 1
+fi
+
+exit 0
