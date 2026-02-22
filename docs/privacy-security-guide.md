@@ -1,6 +1,6 @@
-# privacy pool Security Guide
+# Privacy Pool Security Guide
 
-This document summarizes the threat model, hardening measures, and best practices for the privacy pool privacy protocol.
+This document summarizes the threat model, hardening measures, and best practices for the privacy pool protocol.
 
 ## Threat Model Summary
 
@@ -14,7 +14,7 @@ The privacy pool protocol was subjected to a comprehensive security analysis cov
 | Pool Economics | 4 | ✅ Addressed |
 | Privacy Leakage | 3 | ✅ Mitigated |
 
-## Contract Guards (CashV4Pool.es)
+## Contract Guards (MiddayPoolV4.es)
 
 The v4 contract includes 5 hardened guards:
 
