@@ -99,12 +99,43 @@ class ErgoNode:
         )
 
     def get_unspent_boxes(self, address: str, limit: int = 50) -> list[Box]:
-        """Return unspent boxes (UTXOs) for an address."""
+        """Return unspent boxes (UTXOs) for an address.
+        
+        Tries the local node's blockchain UTXO endpoint first (fastest,
+        uses validated state), then falls back to the explorer API.
+        """
+        # Try local node blockchain endpoint first (instant, no indexing lag)
+        try:
+            url = f"{self.node_url}/blockchain/box/unspent/byAddress/{address}"
+            response = self._client.get(url)
+            if response.status_code == 200:
+                items = response.json()[:limit]
+                if items:
+                    return [self._parse_box(b) for b in items]
+        except Exception:
+            pass
+
+        # Fallback to explorer
         data = self._get(f"/api/v1/boxes/unspent/byAddress/{address}?limit={limit}")
         return [self._parse_box(b) for b in data.get("items", [])]
 
     def get_box_by_id(self, box_id: str) -> Box:
-        """Return a specific box by ID."""
+        """Return a specific box by ID.
+        
+        Tries the local node's UTXO endpoints first (instant, no indexing lag),
+        then falls back to the explorer API.
+        """
+        # Try local node with mempool (includes unconfirmed UTXOs)
+        for endpoint in [f"/utxo/withPool/byId/{box_id}", f"/utxo/byId/{box_id}"]:
+            try:
+                url = f"{self.node_url}{endpoint}"
+                response = self._client.get(url)
+                if response.status_code == 200:
+                    return self._parse_box(response.json())
+            except Exception:
+                pass
+
+        # Fallback to explorer
         data = self._get(f"/api/v1/boxes/{box_id}")
         return self._parse_box(data)
 
@@ -167,6 +198,8 @@ class ErgoNode:
     def submit_transaction(self, signed_tx: dict[str, Any]) -> str:
         """
         Submit a signed transaction to the network.
+        If the local node rejects it due to an unsynchronized UTXO set,
+        it automatically falls back to broadcasting via the Explorer API.
 
         Args:
             signed_tx: signed transaction as a dict (ErgoTransaction format)
@@ -174,15 +207,39 @@ class ErgoNode:
         Returns:
             str: transaction ID
         """
-        response = self._client.post(
-            f"{self.node_url}/api/v1/transactions",
-            json=signed_tx,
-        )
-        if response.status_code != 200:
-            raise ErgoNodeError(
-                f"Transaction rejected: {response.status_code} — {response.text}"
+        try:
+            response = self._client.post(
+                f"{self.node_url}/transactions",
+                json=signed_tx,
             )
-        return str(response.json())
+            if response.status_code == 200:
+                return str(response.json())
+                
+            error_text = response.text
+            # If node is syncing, it rejects mempool txs. Fallback to Explorer.
+            if response.status_code == 400 and "should be in UTXO" in error_text:
+                fallback_resp = self._client.post(
+                    f"{self.explorer_url}/api/v1/mempool/transactions/submit",
+                    json=signed_tx,
+                )
+                if fallback_resp.status_code == 200:
+                    return str(fallback_resp.json().get("id", fallback_resp.text))
+                error_text = fallback_resp.text
+
+            raise ErgoNodeError(
+                f"Transaction rejected: {response.status_code} — {error_text}"
+            )
+        except httpx.ReadTimeout:
+            # Final fallback to community nodes if Explorer times out
+            fallback_nodes = ["http://128.253.41.110:9052", "http://213.239.193.208:9052", "http://168.138.185.215:9052"]
+            for f_node in fallback_nodes:
+                try:
+                    f_resp = self._client.post(f"{f_node}/transactions", json=signed_tx, timeout=5.0)
+                    if f_resp.status_code == 200:
+                        return str(f_resp.json())
+                except Exception:
+                    continue
+            raise ErgoNodeError("Transaction broadcast failed: All nodes and fallbacks timed out.")
 
     # ------------------------------------------------------------------
     # Script compilation
@@ -240,7 +297,8 @@ class ErgoNode:
     # ------------------------------------------------------------------
 
     def _get(self, path: str) -> Any:
-        url = f"{self.node_url}{path}"
+        base = self.explorer_url if path.startswith("/api/v1") else self.node_url
+        url = f"{base}{path}"
         response = self._client.get(url)
         if response.status_code != 200:
             raise ErgoNodeError(f"API error {response.status_code} for {url}: {response.text}")

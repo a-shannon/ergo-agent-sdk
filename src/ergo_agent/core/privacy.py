@@ -1,5 +1,5 @@
 """
-Privacy module for $CASH v3 — application-level ring-signature privacy pools.
+Privacy module for privacy pool — application-level ring-signature privacy pools.
 
 This module provides:
 - The NUMS second generator H (for key images / nullifiers)
@@ -120,7 +120,7 @@ NOTE_CONTRACT_SCRIPT = '''
 def find_optimal_pool(
     node: ErgoNode,
     pool_ergo_tree: str,
-    cash_token_id: str,
+    pool_token_id: str,
     denomination: int,
 ) -> Box:
     """
@@ -133,7 +133,7 @@ def find_optimal_pool(
     Args:
         node: Connected ErgoNode client
         pool_ergo_tree: ErgoTree hex of the pool contract
-        cash_token_id: The $CASH token ID
+        pool_token_id: The privacy pool token ID
         denomination: The denomination amount requested
 
     Returns:
@@ -148,7 +148,7 @@ def find_optimal_pool(
     valid_pools: list[Box] = []
     for box in boxes:
         # Check token ID exists (even if reserve is 0, token must be in assets array)
-        if not any(t.token_id == cash_token_id for t in box.tokens):
+        if not any(t.token_id == pool_token_id for t in box.tokens):
             continue
 
         # Check denomination matches R6
@@ -184,7 +184,7 @@ def build_pool_deposit_tx(
     note_box: Box,
     depositor_public_key_hex: str,
     pool_ergo_tree: str,
-    cash_token_id: str,
+    pool_token_id: str,
     denomination: int,
 ) -> dict[str, Any]:
     """
@@ -199,7 +199,7 @@ def build_pool_deposit_tx(
         note_box: the NoteBox being deposited (must contain denomination tokens)
         depositor_public_key_hex: the depositor's one-time public key (GroupElement hex)
         pool_ergo_tree: the ErgoTree hex of the pool contract
-        cash_token_id: the $CASH token ID
+        pool_token_id: the privacy pool token ID
         denomination: the denomination amount (must match pool's R6)
 
     Returns:
@@ -209,7 +209,7 @@ def build_pool_deposit_tx(
     current_keys_r4 = pool_box.additional_registers.get("R4", "")
     current_reserve = 0
     for t in pool_box.tokens:
-        if t.token_id == cash_token_id:
+        if t.token_id == pool_token_id:
             current_reserve = t.amount
             break
 
@@ -223,7 +223,7 @@ def build_pool_deposit_tx(
         .add_output_raw(
             ergo_tree=pool_ergo_tree,
             value_nanoerg=pool_box.value,
-            tokens=[{"tokenId": cash_token_id, "amount": new_reserve}],
+            tokens=[{"tokenId": pool_token_id, "amount": new_reserve}],
             registers={
                 # R4: updated keys (append depositor key) — must be serialized
                 # R5: unchanged nullifier tree
@@ -247,7 +247,7 @@ def build_pool_withdraw_tx(
     avl_insert_proof_hex: str,
     recipient_ergo_tree: str,
     pool_ergo_tree: str,
-    cash_token_id: str,
+    pool_token_id: str,
     denomination: int,
 ) -> dict[str, Any]:
     """
@@ -264,7 +264,7 @@ def build_pool_withdraw_tx(
         avl_insert_proof_hex: serialized AvlTree insert proof bytes
         recipient_ergo_tree: ErgoTree of the withdrawal recipient
         pool_ergo_tree: ErgoTree hex of the pool contract
-        cash_token_id: the $CASH token ID
+        pool_token_id: the privacy pool token ID
         denomination: amount to withdraw (must match pool's R6)
 
     Returns:
@@ -272,7 +272,7 @@ def build_pool_withdraw_tx(
     """
     current_reserve = 0
     for t in pool_box.tokens:
-        if t.token_id == cash_token_id:
+        if t.token_id == pool_token_id:
             current_reserve = t.amount
             break
 
@@ -290,7 +290,7 @@ def build_pool_withdraw_tx(
         .add_output_raw(
             ergo_tree=pool_ergo_tree,
             value_nanoerg=pool_box.value,
-            tokens=[{"tokenId": cash_token_id, "amount": new_reserve}],
+            tokens=[{"tokenId": pool_token_id, "amount": new_reserve}],
             registers={
                 "R4": pool_box.additional_registers.get("R4", ""),  # Keys unchanged
                 "R5": "",  # Updated nullifier tree (new digest) — TODO: serialize
@@ -301,7 +301,7 @@ def build_pool_withdraw_tx(
         .add_output_raw(
             ergo_tree=recipient_ergo_tree,
             value_nanoerg=MIN_BOX_VALUE_NANOERG,
-            tokens=[{"tokenId": cash_token_id, "amount": denomination}],
+            tokens=[{"tokenId": pool_token_id, "amount": denomination}],
         )
         .build()
     )

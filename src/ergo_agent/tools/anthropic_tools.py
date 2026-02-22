@@ -108,8 +108,8 @@ def build_anthropic_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
             },
         },
         {
-            "name": "get_cash_pools",
-            "description": "Scan the blockchain for active $CASH v3 privacy pools.",
+            "name": "get_privacy_pools",
+            "description": "Scan the blockchain for active privacy pool privacy pools.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -119,8 +119,8 @@ def build_anthropic_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
             },
         },
         {
-            "name": "deposit_cash_to_pool",
-            "description": "Deposit a $CASH note denomination into a privacy pool to enter the ring.",
+            "name": "deposit_to_privacy_pool",
+            "description": "Deposit a privacy pool note denomination into a privacy pool to enter the ring.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -131,8 +131,8 @@ def build_anthropic_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
             },
         },
         {
-            "name": "withdraw_cash_privately",
-            "description": "Withdraw a $CASH note from a privacy pool using an autonomous ring signature!",
+            "name": "withdraw_from_privacy_pool",
+            "description": "Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!",
             "input_schema": {
                 "type": "object",
                 "properties": {

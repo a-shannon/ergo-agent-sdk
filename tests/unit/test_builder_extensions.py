@@ -163,7 +163,7 @@ class TestBuildWithExplicitInputs:
 
         # First input should be the explicit one
         assert tx["inputs"][0]["boxId"] == "pool_box_004"
-        assert tx["inputs"][0]["spendingProof"]["extension"] == {"0": "aabb"}
+        assert tx["inputs"][0]["extension"] == {"0": "aabb"}
 
     def test_explicit_input_covers_outputs_no_wallet_needed(self) -> None:
         """If explicit inputs have enough ERG, no wallet UTXOs are selected."""

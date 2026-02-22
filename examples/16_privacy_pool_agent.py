@@ -18,7 +18,7 @@ os.environ["LANGCHAIN_TRACING_V2"] = "false"
 
 async def main():
     print("==============================================")
-    print("  $CASH v3 -- AI Agent Ring Scanner  ")
+    print("  privacy pool -- AI Agent Ring Scanner  ")
     print("==============================================\n")
 
 
@@ -45,44 +45,44 @@ async def main():
         dry_run=True  # Important: don't actually sign/submit transactions
     )
 
-    # Build the full toolkit integrating our new CashV3Client
+    # Build the full toolkit integrating our new PrivacyPoolClient
     toolkit = ErgoToolkit(node, wallet, safety)
     tools = toolkit.to_langchain_tools()
 
-    print(f"\n> Registered {len(tools)} Ergo tools including $CASH v3 Ring methods.")
+    print(f"\n> Registered {len(tools)} Ergo tools including privacy pool Ring methods.")
 
     # For this offline demonstration, we will simulate the LLM's step-by-step reasoning
     # and tool execution using the injected tools
-    prompt = "I have 100 $CASH. Scan for a pool with at least 8 depositors and make a private transfer to Bob at '9f4QF8AD1nQ3nJahQVkMj8hFSVVzVom77b52JU7EW71ZexG6N8v'."
+    prompt = "I have 100 privacy pool. Scan for a pool with at least 8 depositors and make a private transfer to Bob at '9f4QF8AD1nQ3nJahQVkMj8hFSVVzVom77b52JU7EW71ZexG6N8v'."
     print(f"\n[USER PROMPT]: {prompt}\n")
     print("-------------------- AGENT THOUGHT PROCESS ---------------------")
 
-    print("\n[AI]: I need to scan the blockchain for a $CASH v3 pool with a denomination of 100 that has an anonymity set of at least 8.")
-    print("\n[TOOL CALLED: get_cash_pools] -> args: {'denomination': 100}")
+    print("\n[AI]: I need to scan the blockchain for a privacy pool pool with a denomination of 100 that has an anonymity set of at least 8.")
+    print("\n[TOOL CALLED: get_privacy_pools] -> args: {'denomination': 100}")
     
     # Actually call the method from our toolkit!
-    pool_data = toolkit.get_cash_pools(denomination=100)
+    pool_data = toolkit.get_privacy_pools(denomination=100)
     print(f"[TOOL RESULT] -> {pool_data}")
     
     # Parse the stubbed data
     pool_id = pool_data[0]["pool_id"]
     ring_size = pool_data[0]["current_ring_size"]
 
-    print(f"\n[AI]: I found a suitable pool ({pool_id}) with a ring size of {ring_size}. I will now generate a stealth key and deposit 100 $CASH into the pool.")
-    print(f"\n[TOOL CALLED: deposit_cash_to_pool] -> args: {{'pool_id': '{pool_id}', 'denomination': 100}}")
+    print(f"\n[AI]: I found a suitable pool ({pool_id}) with a ring size of {ring_size}. I will now generate a stealth key and deposit 100 privacy pool into the pool.")
+    print(f"\n[TOOL CALLED: deposit_to_privacy_pool] -> args: {{'pool_id': '{pool_id}', 'denomination': 100}}")
     
     # Actually call the method from our toolkit!
-    deposit_res = toolkit.deposit_cash_to_pool(pool_id=pool_id, denomination=100)
+    deposit_res = toolkit.deposit_to_privacy_pool(pool_id=pool_id, denomination=100)
     print(f"[TOOL RESULT] -> {deposit_res}")
 
-    print(f"\n[AI]: The deposit transaction is built. The next block will mine it. I will now autonomously build the ring signature withdrawal transaction sending the $CASH to Bob's stealth address.")
-    print(f"\n[TOOL CALLED: withdraw_cash_privately] -> args: {{'pool_id': '{pool_id}', 'recipient_address': '9f4QF8AD1nQ3nJahQVkMj8hFSVVzVom77b52JU7EW71ZexG6N8v', 'key_image': 'deadbeef'}}")
+    print(f"\n[AI]: The deposit transaction is built. The next block will mine it. I will now autonomously build the ring signature withdrawal transaction sending the privacy pool to Bob's stealth address.")
+    print(f"\n[TOOL CALLED: withdraw_from_privacy_pool] -> args: {{'pool_id': '{pool_id}', 'recipient_address': '9f4QF8AD1nQ3nJahQVkMj8hFSVVzVom77b52JU7EW71ZexG6N8v', 'key_image': 'deadbeef'}}")
     
     # Actually call the method from our toolkit!
-    withdraw_res = toolkit.withdraw_cash_privately(pool_id=pool_id, recipient_address="9f4QF8AD1nQ3nJahQVkMj8hFSVVzVom77b52JU7EW71ZexG6N8v", key_image="deadbeef")
+    withdraw_res = toolkit.withdraw_from_privacy_pool(pool_id=pool_id, recipient_address="9f4QF8AD1nQ3nJahQVkMj8hFSVVzVom77b52JU7EW71ZexG6N8v", key_image="deadbeef")
     print(f"[TOOL RESULT] -> {withdraw_res}")
 
-    print("\n[AI]: Both transactions have been successfully constructed and signed. Bob will receive his $CASH from an untraceable ring signature. Mission accomplished!")
+    print("\n[AI]: Both transactions have been successfully constructed and signed. Bob will receive his privacy pool from an untraceable ring signature. Mission accomplished!")
 
 
 if __name__ == "__main__":

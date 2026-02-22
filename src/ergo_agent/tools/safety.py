@@ -33,13 +33,16 @@ class SafetyConfig:
     """
     max_erg_per_tx: float = 10.0
     max_erg_per_day: float = 50.0
-    allowed_contracts: list[str] = field(default_factory=lambda: ["spectrum", "sigmausd", "rosen"])
+    allowed_contracts: list[str] = field(default_factory=lambda: ["spectrum", "sigmausd", "rosen", "privacy_pool"])
     rate_limit_per_hour: int = 20
     dry_run: bool = False
+    min_withdrawal_delay_blocks: int = 100  # [FIX 3.1] Recommended delay between deposit and withdrawal
+    min_pool_ring_size: int = 4  # [FIX 1.1] Minimum ring size for withdrawal
 
     # Internal tracking (not user-facing)
     _action_timestamps: deque = field(default_factory=deque, repr=False)
     _daily_spend_log: list[tuple[float, float]] = field(default_factory=list, repr=False)  # (timestamp, erg)
+    _deposit_heights: dict[str, int] = field(default_factory=dict, repr=False)  # pool_id -> deposit height
 
     def validate_send(self, amount_erg: float, destination: str) -> None:
         """
@@ -70,7 +73,8 @@ class SafetyConfig:
             is_allowed = (
                 destination in allowed
                 or any(dest.lower() in destination.lower() for dest in allowed)
-                or destination.startswith("9")  # allow sending to any P2PK wallet address
+                or destination.startswith("9")  # mainnet P2PK addresses
+                or destination.startswith("3")  # testnet P2PK addresses
             )
             if not is_allowed:
                 raise SafetyViolation(
@@ -114,3 +118,79 @@ class SafetyConfig:
         # Prune entries older than 24h to prevent unbounded growth
         self._daily_spend_log = [(ts, erg) for ts, erg in self._daily_spend_log if ts > cutoff]
         return sum(erg for _, erg in self._daily_spend_log)
+
+    # ------------------------------------------------------------------
+    # Phase V: Privacy Leakage Mitigations
+    # ------------------------------------------------------------------
+
+    def recommend_withdrawal_delay(self, deposit_height: int, current_height: int) -> dict[str, int | bool]:
+        """
+        Recommend whether the user should wait before withdrawing.
+        Withdrawing too soon after depositing creates a timing correlation.
+
+        Returns:
+            {"safe": bool, "blocks_remaining": int, "recommended_wait": int}
+        """
+        elapsed = current_height - deposit_height
+        return {
+            "safe": elapsed >= self.min_withdrawal_delay_blocks,
+            "blocks_remaining": max(0, self.min_withdrawal_delay_blocks - elapsed),
+            "recommended_wait": self.min_withdrawal_delay_blocks,
+        }
+
+    @staticmethod
+    def compute_deterministic_change(input_value: int, output_value: int, fee: int) -> int:
+        """
+        Compute a deterministic change amount that rounds to common denominations
+        to prevent fingerprinting via unique change values.
+
+        Instead of sending exact change (e.g., 483917 nanoERG), we round to
+        the nearest 0.01 ERG (10_000_000 nanoERG) to blend with other transactions.
+        """
+        raw_change = input_value - output_value - fee
+        if raw_change <= 0:
+            return 0
+        # Round down to nearest 0.01 ERG (10M nanoERG)
+        rounded = (raw_change // 10_000_000) * 10_000_000
+        return max(rounded, 1_000_000)  # Minimum box value
+
+    @staticmethod
+    def randomize_withdrawal_timing() -> float:
+        """
+        Return a random delay (in seconds) to add before submitting a withdrawal
+        to prevent timing correlation attacks.
+
+        Returns a value between 30 and 300 seconds (0.5–5 minutes).
+        """
+        import random
+        return random.uniform(30.0, 300.0)
+
+    def validate_privacy_withdrawal(
+        self,
+        pool_ring_size: int,
+        deposit_height: int | None,
+        current_height: int,
+    ) -> list[str]:
+        """
+        Run privacy-aware pre-flight checks before withdrawal.
+
+        Returns a list of warning strings (empty = all clear).
+        """
+        warnings = []
+
+        if pool_ring_size < self.min_pool_ring_size:
+            warnings.append(
+                f"LOW_ANONYMITY: Pool ring size {pool_ring_size} < minimum {self.min_pool_ring_size}. "
+                f"Withdrawal may be linkable."
+            )
+
+        if deposit_height is not None:
+            elapsed = current_height - deposit_height
+            if elapsed < self.min_withdrawal_delay_blocks:
+                warnings.append(
+                    f"TOO_SOON: Only {elapsed} blocks since deposit (minimum {self.min_withdrawal_delay_blocks}). "
+                    f"Timing analysis risk."
+                )
+
+        return warnings
+

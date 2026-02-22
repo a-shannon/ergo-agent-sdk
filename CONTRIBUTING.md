@@ -58,4 +58,4 @@ mkdocs serve  # preview at http://localhost:8000
 
 ## Architecture
 
-See the [Architecture docs](https://ergo-agent.readthedocs.io/architecture/) for how the codebase is structured. Key rule: each layer only depends on the one below it (tools → defi → core).
+See the [Architecture docs](https://ergo-agent-sdk.readthedocs.io/architecture/) for how the codebase is structured. Key rule: each layer only depends on the one below it (tools → defi → core).

@@ -1,6 +1,6 @@
 site_name: ergo-agent SDK
 site_description: Open-source Python SDK for AI agents on the Ergo blockchain
-site_url: https://ergo-agent.readthedocs.io
+site_url: https://ergo-agent-sdk.readthedocs.io
 repo_url: https://github.com/ergoplatform/ergo-agent-sdk
 repo_name: ergo-agent-sdk
 
@@ -42,6 +42,10 @@ nav:
   - "Tutorial: Hello, Ergo!": tutorial.md
   - Architecture: architecture.md
   - API Reference: api-reference.md
+  - "privacy pool Privacy Protocol":
+    - Usage Guide: privacy-pool-guide.md
+    - Security Guide: privacy-security-guide.md
+    - Whitepaper: whitepapers/privacy-pool-whitepaper.md
 
 plugins:
   - search

@@ -234,10 +234,7 @@ class TransactionBuilder:
                     )
             input_entries.append({
                 "boxId": box.box_id,
-                "spendingProof": {
-                    "proofBytes": "",
-                    "extension": ei["extension"],
-                },
+                "extension": ei["extension"],
             })
             total_input_erg += box.value
             for t in box.tokens:
@@ -266,7 +263,7 @@ class TransactionBuilder:
             for b in selected:
                 input_entries.append({
                     "boxId": b.box_id,
-                    "spendingProof": {"proofBytes": "", "extension": {}},
+                    "extension": {},
                 })
             total_input_erg += sel_erg
             for t_id, amt in sel_tokens.items():

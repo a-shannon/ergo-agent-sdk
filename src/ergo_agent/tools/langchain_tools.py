@@ -111,6 +111,28 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
             name=name, description=description, amount=amount, decimals=decimals
         ))
 
+    @lc_tool
+    def get_privacy_pools(denomination: int) -> str:
+        """Scan the blockchain for active privacy pool privacy pools."""
+        import json
+        return json.dumps(toolkit.get_privacy_pools(denomination=denomination))
+
+    @lc_tool
+    def deposit_to_privacy_pool(pool_id: str, denomination: int) -> str:
+        """Deposit a privacy pool note denomination into a privacy pool to enter the ring."""
+        import json
+        return json.dumps(toolkit.deposit_to_privacy_pool(pool_id=pool_id, denomination=denomination))
+
+    @lc_tool
+    def withdraw_from_privacy_pool(pool_id: str, recipient_address: str, key_image: str) -> str:
+        """Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!"""
+        import json
+        return json.dumps(toolkit.withdraw_from_privacy_pool(
+            pool_id=pool_id, 
+            recipient_address=recipient_address, 
+            key_image=key_image
+        ))
+
     return [
         get_wallet_balance,
         get_erg_price,
@@ -122,4 +144,7 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         get_sigmausd_state,
         get_rosen_bridge_status,
         mint_token,
+        get_privacy_pools,
+        deposit_to_privacy_pool,
+        withdraw_from_privacy_pool,
     ]

@@ -8,7 +8,7 @@ from ergo_lib_python.chain import Constant
 
 async def main():
     print("==============================================")
-    print("  $CASH v3 -- AI Agent Ring Scanner  ")
+    print("  privacy pool -- AI Agent Ring Scanner  ")
     print("==============================================\n")
 
     print("> Initializing SDK and connecting to ErgoNode...")

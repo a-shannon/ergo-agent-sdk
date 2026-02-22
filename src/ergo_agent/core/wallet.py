@@ -131,13 +131,55 @@ class Wallet:
         self, unsigned_tx: dict[str, Any], node: Any
     ) -> dict[str, Any]:
         """Sign transaction using the node's wallet API."""
-        response = node._client.post(
-            f"{node.node_url}/wallet/transaction/sign",
-            json={"tx": unsigned_tx},
-        )
-        if response.status_code != 200:
-            raise WalletError(f"Node signing failed: {response.text}")
-        return response.json()
+        try:
+            import ergo_lib_python.chain as chain
+            inputs_raw = []
+            for inp in unsigned_tx.get("inputs", []):
+                box_id = inp["boxId"]
+                # Fetch box from local node first (mempool-aware), then explorer
+                box_json = None
+                for endpoint in [
+                    f"{node.node_url}/utxo/withPool/byId/{box_id}",
+                    f"{node.node_url}/utxo/byId/{box_id}",
+                    f"{node.explorer_url}/api/v1/boxes/{box_id}",
+                ]:
+                    try:
+                        r = node._client.get(endpoint)
+                        if r.status_code == 200:
+                            box_json = r.json()
+                            break
+                    except Exception:
+                        continue
+                
+                if box_json:
+                    try:
+                        import json
+                        box_json_str = json.dumps(box_json)
+                        box = chain.ErgoBox.from_json(box_json_str)
+                        inputs_raw.append(bytes(box).hex())
+                    except Exception:
+                        pass
+            
+            payload = {"tx": unsigned_tx}
+            if len(inputs_raw) == len(unsigned_tx.get("inputs", [])):
+                payload["inputsRaw"] = inputs_raw
+                
+            response = node._client.post(
+                f"{node.node_url}/wallet/transaction/sign",
+                json=payload,
+            )
+            if response.status_code != 200:
+                raise WalletError(f"Node signing failed: {response.text}")
+            return response.json()
+        except ImportError:
+            # Fallback if ergo_lib_python is not installed (should not happen in SDK)
+            response = node._client.post(
+                f"{node.node_url}/wallet/transaction/sign",
+                json={"tx": unsigned_tx},
+            )
+            if response.status_code != 200:
+                raise WalletError(f"Node signing failed: {response.text}")
+            return response.json()
 
     # ------------------------------------------------------------------
     # Display

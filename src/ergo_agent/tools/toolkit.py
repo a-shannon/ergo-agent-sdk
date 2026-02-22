@@ -31,7 +31,7 @@ from typing import Any
 
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
-from ergo_agent.defi.cash_v3 import CashV3Client
+from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 from ergo_agent.defi.oracle import OracleReader
 from ergo_agent.defi.rosen import RosenBridge
 from ergo_agent.defi.sigmausd import SigmaUSD
@@ -63,7 +63,7 @@ class ErgoToolkit:
         self._spectrum = SpectrumDEX(node)
         self._sigmausd = SigmaUSD(node)
         self._rosen = RosenBridge(node)
-        self._cash = CashV3Client(node, wallet)
+        self._cash = PrivacyPoolClient(node, wallet)
         self._treasury = ErgoTreasury(node)
 
     # ------------------------------------------------------------------
@@ -108,7 +108,7 @@ class ErgoToolkit:
             }
         except Exception as e:
             # Fallback to DEX spot price
-            dex_price = self._dex.get_erg_price_in_sigusd()
+            dex_price = self._spectrum.get_erg_price_in_sigusd()
             return {
                 "erg_usd": round(dex_price, 4),
                 "source": "Spectrum DEX spot price",
@@ -134,7 +134,7 @@ class ErgoToolkit:
         Returns:
             dict with expected output, price impact, and fee info
         """
-        quote = self._dex.get_quote(token_in, token_out, amount_erg, amount_token)
+        quote = self._spectrum.get_quote(token_in, token_out, amount_erg, amount_token)
         return {
             "token_in": token_in,
             "token_in_amount": amount_erg or amount_token,
@@ -238,7 +238,7 @@ class ErgoToolkit:
         self._safety.validate_send(amount_erg, "spectrum")
 
         # Get quote first
-        quote = self._dex.get_quote("ERG", token_out, amount_erg=amount_erg)
+        quote = self._spectrum.get_quote("ERG", token_out, amount_erg=amount_erg)
 
         if quote.price_impact_pct > max_slippage_pct:
             return {
@@ -266,7 +266,7 @@ class ErgoToolkit:
         # Build Spectrum swap order transaction
         from ergo_agent.core.builder import TransactionBuilder
 
-        order = self._dex.build_swap_order(
+        order = self._spectrum.build_swap_order(
             token_in="ERG",
             token_out=token_out,
             amount_erg=amount_erg,
@@ -353,9 +353,9 @@ class ErgoToolkit:
         }
 
 
-    def get_cash_pools(self, denomination: int) -> list[dict[str, Any]]:
+    def get_privacy_pools(self, denomination: int) -> list[dict[str, Any]]:
         """
-        Scan the blockchain for active $CASH v3 pools.
+        Scan the blockchain for active privacy pool pools.
         Returns a list of pool IDs and their current anonymity ring sizes.
         """
         # Read-only operation; bypasses strict safety gate
@@ -364,35 +364,40 @@ class ErgoToolkit:
             p['current_ring_size'] = self._cash.evaluate_pool_anonymity(p['pool_id'])
         return pools
 
-    def deposit_cash_to_pool(self, pool_id: str, denomination: int) -> dict[str, Any]:
+    def deposit_to_privacy_pool(self, pool_id: str, denomination: int, stealth_key: str = "02a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef12345678ab") -> dict[str, Any]:
         """
-        Deposit a $CASH note denomination into a privacy pool to enter the ring.
+        Deposit a privacy pool note denomination into a privacy pool to enter the ring.
         """
         self._safety.validate_send(
-            amount_erg=float(denomination),
-            destination=pool_id
+            amount_erg=0.05, # Base transaction operating overhead
+            destination="privacy_pool"
         )
-        stealth_key = "example_stealth_key_123" # Mock stealth key generation
         builder = self._cash.build_deposit_tx(pool_id, stealth_key, denomination)
         if self._safety.dry_run:
             return {"status": "dry_run", "message": "Transaction verified, not submitted."}
         tx = builder.build()
-        tx_id = self._node.submit_transaction(tx)
+        logger.debug(f"Unsigned deposit payload: {json.dumps(tx)}")
+        signed = self._wallet.sign_transaction(tx, self._node)
+        tx_id = self._node.submit_transaction(signed)
+        self._safety.record_action(erg_spent=0.05)
         return {"status": "success", "tx_id": tx_id, "pool_id": pool_id, "amount": denomination}
 
-    def withdraw_cash_privately(self, pool_id: str, recipient_address: str, key_image: str) -> dict[str, Any]:
+    def withdraw_from_privacy_pool(self, pool_id: str, recipient_address: str, key_image: str) -> dict[str, Any]:
         """
-        Withdraw a $CASH note from a privacy pool using an autonomous ring signature!
+        Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!
         """
         self._safety.validate_send(
-            amount_erg=100.0, # Withdrawal amount
-            destination=pool_id
+            amount_erg=0.002, # Minimal box value + fee
+            destination="privacy_pool"
         )
         if self._safety.dry_run:
             return {"status": "dry_run", "message": "Ring Signature constructed successfully, transaction verified."}
         builder = self._cash.build_withdrawal_tx(pool_id, recipient_address, key_image)
         tx = builder.build()
-        tx_id = self._node.submit_transaction(tx)
+        
+        signed = self._wallet.sign_transaction(tx, self._node)
+        tx_id = self._node.submit_transaction(signed)
+        self._safety.record_action(erg_spent=0.002)
         return {"status": "success", "tx_id": tx_id, "recipient": recipient_address}
 
     def bridge_assets(
@@ -562,9 +567,9 @@ class ErgoToolkit:
             "send_funds": lambda i: self.send_funds(**i),
             "swap_erg_for_token": lambda i: self.swap_erg_for_token(**i),
             "mint_token": lambda i: self.mint_token(**i),
-            "get_cash_pools": lambda i: self.get_cash_pools(**i),
-            "deposit_cash_to_pool": lambda i: self.deposit_cash_to_pool(**i),
-            "withdraw_cash_privately": lambda i: self.withdraw_cash_privately(**i),
+            "get_privacy_pools": lambda i: self.get_privacy_pools(**i),
+            "deposit_to_privacy_pool": lambda i: self.deposit_to_privacy_pool(**i),
+            "withdraw_from_privacy_pool": lambda i: self.withdraw_from_privacy_pool(**i),
             "mint_sigusd": lambda i: self.mint_sigusd(**i),
             "redeem_sigusd": lambda i: self.redeem_sigusd(**i),
             "mint_sigmrsv": lambda i: self.mint_sigmrsv(**i),

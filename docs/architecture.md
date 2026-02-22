@@ -25,7 +25,7 @@ The foundation. Handles all direct blockchain interaction.
 | `Wallet` | Address management and transaction signing |
 | `TransactionBuilder` | UTXO selection, fee calculation, change handling |
 | `address` | Base58 validation, ErgoTree derivation, checksum verification |
-| `privacy` | $CASH v3 ring-signature pool interactions and NUMS generators |
+| `privacy` | privacy pool ring-signature pool interactions and NUMS generators |
 | `models` | Data classes: `Box`, `Balance`, `Token`, `Transaction`, `SwapQuote` |
 
 ### DeFi Layer (`ergo_agent.defi`)
@@ -89,9 +89,9 @@ Unlike Bitcoin UTXOs, Ergo boxes have:
 
 This is why the SDK has a `TransactionBuilder` — constructing a transaction means selecting input boxes, creating output boxes, and handling change.
 
-### Advanced Cryptography: $CASH v3 Ring Signatures
+### Advanced Cryptography: privacy pool Ring Signatures
 
-Because Ergo uses Sigma Protocols natively, the SDK's `TransactionBuilder` and `privacy` modules support advanced zero-knowledge proofs like **Ring Signatures** out of the box. For example, $CASH v3 creates application-level privacy pools:
+Because Ergo uses Sigma Protocols natively, the SDK's `TransactionBuilder` and `privacy` modules support advanced zero-knowledge proofs like **Ring Signatures** out of the box. For example, privacy pool creates application-level privacy pools:
 
 1. **Deposit**: A user adds their public key to a `PoolBox` (in register `R4`) and deposits tokens.
 2. **Withdrawal**: The user generates a ring signature (`proveDlog` combined with `proveDHTuple`) proving they own *one* of the keys in the pool, without revealing which one. They spend the key image (nullifier) to prevent double spending.
