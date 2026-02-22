@@ -31,8 +31,8 @@ from typing import Any
 
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
-from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 from ergo_agent.defi.oracle import OracleReader
+from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 from ergo_agent.defi.rosen import RosenBridge
 from ergo_agent.defi.sigmausd import SigmaUSD
 from ergo_agent.defi.spectrum import SpectrumDEX
@@ -394,7 +394,7 @@ class ErgoToolkit:
             return {"status": "dry_run", "message": "Ring Signature constructed successfully, transaction verified."}
         builder = self._cash.build_withdrawal_tx(pool_id, recipient_address, key_image)
         tx = builder.build()
-        
+
         signed = self._wallet.sign_transaction(tx, self._node)
         tx_id = self._node.submit_transaction(signed)
         self._safety.record_action(erg_spent=0.002)

@@ -10,7 +10,6 @@ Run with: python -m pytest tests/integration/test_privacy_lifecycle.py -v -m int
 """
 
 import os
-import time
 
 import pytest
 
@@ -19,7 +18,6 @@ from ergo_agent.core.wallet import Wallet
 from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 from ergo_agent.tools.safety import SafetyConfig
 from ergo_agent.tools.toolkit import ErgoToolkit
-
 
 pytestmark = pytest.mark.integration
 
@@ -147,7 +145,7 @@ def test_withdrawal_builds_two_outputs(cash_client):
         key_image,
     )
     assert len(builder._outputs) == 2
-    print(f"\n[+] Withdrawal tx has 2 outputs: pool continuation + note")
+    print("\n[+] Withdrawal tx has 2 outputs: pool continuation + note")
 
 
 def test_withdrawal_preserves_r4(cash_client):
@@ -173,7 +171,7 @@ def test_withdrawal_preserves_r4(cash_client):
     )
     output_r4 = builder._outputs[0]["registers"]["R4"]
     assert output_r4 == original_r4
-    print(f"\n[+] R4 preserved across withdrawal (keys unchanged)")
+    print("\n[+] R4 preserved across withdrawal (keys unchanged)")
 
 
 def test_withdrawal_note_has_correct_token(cash_client):

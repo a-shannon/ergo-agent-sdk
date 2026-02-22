@@ -1,8 +1,7 @@
-import asyncio
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
 from ergo_agent.tools.toolkit import ErgoToolkit
-from langchain_core.utils.function_calling import convert_to_openai_function
+
 
 def main():
     # 1. Initialize core components (using dummy testnet address)

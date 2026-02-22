@@ -15,7 +15,6 @@ from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
 from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 
-
 pytestmark = pytest.mark.integration
 
 NODE_URL = os.environ.get("ERGO_NODE_URL", "http://127.0.0.1:9052")
@@ -85,7 +84,7 @@ def test_double_spend_key_image(cash_client):
             # would reject it when submitted. We verify the structure is valid
             # but note that the contract evaluation will fail.
             assert len(builder._outputs) == 2
-            print(f"\n[+] Double-spend tx built but would be rejected by contract (notUsed check)")
+            print("\n[+] Double-spend tx built but would be rejected by contract (notUsed check)")
             return
 
     pytest.skip("No existing nullifiers in R5 to test double-spend against")
@@ -171,7 +170,7 @@ def test_tampered_proposition_bytes(cash_client):
     builder._outputs[0]["ergo_tree"] = "0008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
 
     assert builder._outputs[0]["ergo_tree"] != original_tree
-    print(f"\n[+] ErgoTree redirected. Contract would reject (scriptOk)")
+    print("\n[+] ErgoTree redirected. Contract would reject (scriptOk)")
 
 
 # --- Token Manipulation ---
@@ -219,8 +218,8 @@ def test_deposit_r4_key_removal(cash_client):
     builder._outputs[0]["registers"]["R4"] = "1301" + stealth_key
 
     assert builder._outputs[0]["registers"]["R4"] != original_r4
-    print(f"\n[+] R4 tampered to remove existing keys. "
-          f"Contract would reject (oldKeysOk)")
+    print("\n[+] R4 tampered to remove existing keys. "
+          "Contract would reject (oldKeysOk)")
 
 
 def test_withdrawal_token_amount_overflow(cash_client):

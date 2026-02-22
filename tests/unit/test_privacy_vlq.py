@@ -8,7 +8,6 @@ import pytest
 
 from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 
-
 # --- VLQ Roundtrip Tests ---
 
 @pytest.mark.parametrize("n", [0, 1, 16, 50, 100, 127])

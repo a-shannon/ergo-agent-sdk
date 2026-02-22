@@ -150,7 +150,7 @@ class Wallet:
                             break
                     except Exception:
                         continue
-                
+
                 if box_json:
                     try:
                         import json
@@ -159,11 +159,11 @@ class Wallet:
                         inputs_raw.append(bytes(box).hex())
                     except Exception:
                         pass
-            
+
             payload = {"tx": unsigned_tx}
             if len(inputs_raw) == len(unsigned_tx.get("inputs", [])):
                 payload["inputsRaw"] = inputs_raw
-                
+
             response = node._client.post(
                 f"{node.node_url}/wallet/transaction/sign",
                 json=payload,
@@ -178,7 +178,7 @@ class Wallet:
                 json={"tx": unsigned_tx},
             )
             if response.status_code != 200:
-                raise WalletError(f"Node signing failed: {response.text}")
+                raise WalletError(f"Node signing failed: {response.text}") from None
             return response.json()
 
     # ------------------------------------------------------------------

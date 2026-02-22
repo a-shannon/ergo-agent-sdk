@@ -128,8 +128,8 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         """Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!"""
         import json
         return json.dumps(toolkit.withdraw_from_privacy_pool(
-            pool_id=pool_id, 
-            recipient_address=recipient_address, 
+            pool_id=pool_id,
+            recipient_address=recipient_address,
             key_image=key_image
         ))
 

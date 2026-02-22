@@ -23,7 +23,6 @@ from typing import Any
 import httpx
 
 from ergo_agent.core.builder import TransactionBuilder
-from ergo_agent.core.models import Box
 from ergo_agent.core.node import ErgoNode
 
 logger = logging.getLogger("ergo_agent.privacy_pool")
@@ -46,11 +45,11 @@ class PrivacyPoolClient:
     def __init__(self, node: ErgoNode = None, wallet=None):
         self.node = node or ErgoNode()
         self.wallet = wallet
-        
+
         # Dynamically load the deployed contract ErgoTree representation
         compiled_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "compiled_contracts.json")
         try:
-            with open(compiled_path, "r") as f:
+            with open(compiled_path) as f:
                 contracts = json.load(f)
                 self.MOCK_CASH_V3_POOL_ERGO_TREE = contracts["pool"]["tree"]
                 self.pool_address = contracts["pool"]["address"]
@@ -67,34 +66,34 @@ class PrivacyPoolClient:
     def _validate_compressed_point(hex_str: str, label: str = "key") -> None:
         """
         [FIX 2.2] Validate that hex_str is a valid compressed secp256k1 point format.
-        
+
         Checks:
         - Exactly 66 hex characters (33 bytes)
         - Starts with 02 or 03 (compressed point prefix)
         - Not a banned protocol constant (groupGenerator, H)
-        
+
         Raises CashValidationError if invalid.
         """
         if not hex_str or not isinstance(hex_str, str):
             raise CashValidationError(f"Invalid {label}: must be a hex string, got {type(hex_str)}")
-        
+
         hex_str = hex_str.lower()
-        
+
         if len(hex_str) != 66:
             raise CashValidationError(
                 f"Invalid {label}: expected 66 hex chars (33 bytes), got {len(hex_str)}"
             )
-        
+
         if hex_str[:2] not in ("02", "03"):
             raise CashValidationError(
                 f"Invalid {label}: must start with 02 or 03, got {hex_str[:2]}"
             )
-        
+
         try:
             bytes.fromhex(hex_str)
-        except ValueError:
-            raise CashValidationError(f"Invalid {label}: not valid hex")
-        
+        except ValueError as err:
+            raise CashValidationError(f"Invalid {label}: not valid hex") from err
+
         # [FIX 2.1, 2.1b] Block known dangerous values
         if hex_str in _BANNED_KEYS:
             if hex_str == GROUP_GENERATOR:
@@ -112,20 +111,20 @@ class PrivacyPoolClient:
     def _check_duplicate_key(self, pool_r4_hex: str, new_key: str) -> None:
         """
         [FIX 2.3] Check if the stealth key already exists in the pool's R4 collection.
-        
+
         Raises CashValidationError if duplicate detected.
         """
         if not pool_r4_hex or len(pool_r4_hex) <= 4:
             return  # Empty pool, no duplicates possible
-        
+
         new_key_lower = new_key.lower()
-        
+
         # Parse existing keys from R4 hex
         if pool_r4_hex.startswith("13"):
             count = self._read_vlq(pool_r4_hex[2:])
             vlq_hex = self._encode_vlq(count)
             data = pool_r4_hex[2 + len(vlq_hex):]
-            
+
             # Each GroupElement is 66 hex chars (33 bytes)
             for i in range(count):
                 start = i * 66
@@ -142,19 +141,19 @@ class PrivacyPoolClient:
     def _check_key_image_not_spent(self, pool_r5_hex: str, key_image: str) -> None:
         """
         [FIX double-spend] Check if the key image already exists in the pool's R5 nullifier list.
-        
+
         Raises CashValidationError if the key image has already been used.
         """
         if not pool_r5_hex or pool_r5_hex == "1300" or len(pool_r5_hex) <= 4:
             return  # No nullifiers yet
-        
+
         key_image_lower = key_image.lower()
-        
+
         if pool_r5_hex.startswith("13"):
             count = self._read_vlq(pool_r5_hex[2:])
             vlq_hex = self._encode_vlq(count)
             data = pool_r5_hex[2 + len(vlq_hex):]
-            
+
             for i in range(count):
                 start = i * 66
                 end = start + 66
@@ -184,7 +183,7 @@ class PrivacyPoolClient:
         pools = []
         if not self.pool_address:
             return pools
-            
+
         try:
             url = f"{self.node.explorer_url}/api/v1/boxes/unspent/byAddress/{self.pool_address}"
             resp = httpx.get(url, timeout=10.0)
@@ -196,15 +195,15 @@ class PrivacyPoolClient:
                         # Count depositor keys from R4
                         r4_data = b.get("additionalRegisters", {}).get("R4", {})
                         ring_size = self._count_group_elements(r4_data)
-                        
+
                         # [FIX 5.2] Include token balance for honest reporting
                         token_balance = b["assets"][0]["amount"] if b.get("assets") else 0
                         withdrawable = token_balance // denomination if denomination > 0 else 0
-                        
+
                         # Count nullifiers in R5 for activity tracking
                         r5_data = b.get("additionalRegisters", {}).get("R5", {})
                         nullifier_count = self._count_group_elements(r5_data)
-                        
+
                         pools.append({
                             "pool_id": b["boxId"],
                             "denomination": denomination,
@@ -220,7 +219,7 @@ class PrivacyPoolClient:
                         })
         except Exception as e:
             logger.error(f"Pool scan failed: {e}")
-            
+
         return pools
 
     def select_best_pool(self, denomination: int = 100) -> dict[str, Any] | None:
@@ -243,32 +242,32 @@ class PrivacyPoolClient:
     def evaluate_pool_health(self, pool_box_id: str) -> dict[str, Any]:
         """
         [FIX 1.1, 3.1, 5.2] Enhanced pool analytics with effective anonymity assessment.
-        
+
         Returns comprehensive health metrics including privacy risk indicators.
         """
         box = self.node.get_box_by_id(pool_box_id)
         if not box:
             return {"error": "Pool not found"}
-        
+
         r4 = box.additional_registers.get("R4", "")
         if isinstance(r4, dict):
             r4 = r4.get("serializedValue", "")
-        
+
         r5 = box.additional_registers.get("R5", "1300")
         if isinstance(r5, dict):
             r5 = r5.get("serializedValue", "1300")
-        
+
         ring_size = self._count_group_elements(r4)
         nullifier_count = self._count_group_elements(r5) if r5 != "1300" else 0
         token_balance = box.tokens[0].amount if box.tokens else 0
-        
+
         r6 = box.additional_registers.get("R6", "05c801")
         if isinstance(r6, dict):
             r6 = r6.get("serializedValue", "05c801")
         denom = self._decode_r6_denomination(r6)
-        
+
         withdrawable = token_balance // denom if denom > 0 else 0
-        
+
         # Check for duplicate keys in R4 (ring poisoning indicator)
         unique_keys = set()
         duplicate_count = 0
@@ -284,9 +283,9 @@ class PrivacyPoolClient:
                     if key in unique_keys:
                         duplicate_count += 1
                     unique_keys.add(key)
-        
+
         effective_anonymity = len(unique_keys)
-        
+
         # Privacy risk assessment
         risk_flags = []
         if ring_size < 4:
@@ -301,7 +300,7 @@ class PrivacyPoolClient:
             withdrawal_ratio = nullifier_count / ring_size
             if withdrawal_ratio > 0.5:
                 risk_flags.append(f"HIGH_WITHDRAWAL_RATIO: {nullifier_count}/{ring_size} keys withdrawn ({withdrawal_ratio:.0%})")
-        
+
         return {
             "pool_id": pool_box_id,
             "ring_size": ring_size,
@@ -323,10 +322,10 @@ class PrivacyPoolClient:
             serialized = r4_data.get("serializedValue", "")
         else:
             serialized = r4_data
-        
+
         if not serialized or len(serialized) <= 4:
             return 0
-        
+
         # Coll[GroupElement] format: 13 <vlq_count> <33-byte elements>...
         if serialized.startswith("13"):
             count = self._read_vlq(serialized[2:])
@@ -390,7 +389,7 @@ class PrivacyPoolClient:
         """
         Construct a transaction depositing privacy pool into a privacy pool.
         This appends the user's stealth key onto the pool's R4 array.
-        
+
         Security validations:
         - Stealth key must be valid compressed secp256k1 format
         - Stealth key must not be groupGenerator or H constant
@@ -399,28 +398,28 @@ class PrivacyPoolClient:
         """
         # [FIX 2.2, 2.1, 2.1b] Validate stealth key
         self._validate_compressed_point(user_stealth_key, label="stealth key")
-        
+
         builder = TransactionBuilder(self.node, self.wallet)
-        
+
         pool_box = self.node.get_box_by_id(pool_box_id)
         if not pool_box:
             raise ValueError(f"SDK could not resolve pool output {pool_box_id}")
-            
+
         logger.debug(f"Live R4 state: {pool_box.additional_registers.get('R4')}")
-        
+
         # Extract current R4 Ring and compute appended size
         pool_r4_hex = pool_box.additional_registers.get("R4", "1300")
         if isinstance(pool_r4_hex, dict):
              pool_r4_hex = pool_r4_hex.get("serializedValue", "1300")
-        
+
         # [FIX 1.2] Pre-check pool capacity
         current_size = 0
         current_array_data = ""
-        if len(pool_r4_hex) > 4: 
+        if len(pool_r4_hex) > 4:
             current_size = self._read_vlq(pool_r4_hex[2:])
             vlq_hex = self._encode_vlq(current_size)
             current_array_data = pool_r4_hex[2 + len(vlq_hex):]
-        
+
         # Check capacity
         pool_r7 = pool_box.additional_registers.get("R7", "0420")
         if isinstance(pool_r7, dict):
@@ -431,21 +430,21 @@ class PrivacyPoolClient:
                 f"Pool is full: {current_size}/{max_ring} slots used. "
                 f"Cannot accept new deposits."
             )
-        
+
         # [FIX 2.3] Check for duplicate keys
         self._check_duplicate_key(pool_r4_hex, user_stealth_key)
-            
+
         new_size = current_size + 1
         new_r4_hex = f"13{self._encode_vlq(new_size)}{current_array_data}{user_stealth_key}"
-        
-        current_cash = pool_box.tokens[0].amount if pool_box.tokens else 0
-        pool_token_id = pool_box.tokens[0].token_id if pool_box.tokens else ""
+
+        pool_box.tokens[0].amount if pool_box.tokens else 0
+        pool_box.tokens[0].token_id if pool_box.tokens else ""
 
         builder.with_input(pool_box)
         pool_r5_hex = pool_box.additional_registers.get("R5", "1300")
         if isinstance(pool_r5_hex, dict):
             pool_r5_hex = pool_r5_hex.get("serializedValue", "1300")
-            
+
         # Extract R6 from the live pool box
         pool_r6 = pool_box.additional_registers.get("R6", "05c801")
         if isinstance(pool_r6, dict):
@@ -457,7 +456,7 @@ class PrivacyPoolClient:
                 "tokenId": pool_box.tokens[0].token_id,
                 "amount": pool_box.tokens[0].amount + denomination
             })
-            
+
         builder.add_output_raw(
             ergo_tree=pool_box.ergo_tree,
             value_nanoerg=pool_box.value,
@@ -502,7 +501,7 @@ class PrivacyPoolClient:
         """
         Construct a withdrawal transaction out of the privacy pool using
         the dynamic `atLeast(1, keys.map(...))` Ring Signature mechanism.
-        
+
         Security validations:
         - Key image must be valid compressed secp256k1 format
         - Key image must not be groupGenerator (prevents nullifier poisoning)
@@ -511,7 +510,7 @@ class PrivacyPoolClient:
         """
         # [FIX 2.1, 2.1b, 2.2] Validate key image
         self._validate_compressed_point(key_image, label="key image")
-        
+
         builder = TransactionBuilder(self.node, self.wallet)
 
         pool_box = self.node.get_box_by_id(pool_box_id)
@@ -519,19 +518,23 @@ class PrivacyPoolClient:
             raise ValueError(f"Pool Box {pool_box_id} not found")
 
         pool_r4 = pool_box.additional_registers.get("R4")
-        if isinstance(pool_r4, dict): pool_r4 = pool_r4.get("serializedValue")
-        
+        if isinstance(pool_r4, dict):
+            pool_r4 = pool_r4.get("serializedValue")
+
         pool_r5 = pool_box.additional_registers.get("R5", "1300")
-        if isinstance(pool_r5, dict): pool_r5 = pool_r5.get("serializedValue", "1300")
-        
+        if isinstance(pool_r5, dict):
+            pool_r5 = pool_r5.get("serializedValue", "1300")
+
         # [FIX double-spend] Check key image not already in nullifier list
         self._check_key_image_not_spent(pool_r5, key_image)
-        
+
         pool_r6 = pool_box.additional_registers.get("R6", "05c801")
-        if isinstance(pool_r6, dict): pool_r6 = pool_r6.get("serializedValue", "05c801")
-        
+        if isinstance(pool_r6, dict):
+            pool_r6 = pool_r6.get("serializedValue", "05c801")
+
         pool_r7 = pool_box.additional_registers.get("R7", "0420")
-        if isinstance(pool_r7, dict): pool_r7 = pool_r7.get("serializedValue", "0420")
+        if isinstance(pool_r7, dict):
+            pool_r7 = pool_r7.get("serializedValue", "0420")
 
         # Extract denomination dynamically from R6
         token_id = pool_box.tokens[0].token_id
@@ -590,11 +593,11 @@ class PrivacyPoolClient:
 def _compute_privacy_score(effective_anonymity: int, risk_flags: list[str]) -> str:
     """
     Compute a human-readable privacy score for a pool.
-    
+
     Returns: "EXCELLENT", "GOOD", "FAIR", "POOR", or "CRITICAL"
     """
     score = effective_anonymity * 10  # Base: 10 points per unique depositor
-    
+
     # Deductions for risk factors
     for flag in risk_flags:
         if "LOW_RING_SIZE" in flag:
@@ -607,7 +610,7 @@ def _compute_privacy_score(effective_anonymity: int, risk_flags: list[str]) -> s
             score -= 10
         elif "HIGH_WITHDRAWAL_RATIO" in flag:
             score -= 15
-    
+
     if score >= 100:
         return "EXCELLENT"
     elif score >= 60:

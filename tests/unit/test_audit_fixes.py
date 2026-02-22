@@ -5,12 +5,10 @@ Unit tests for new audit-identified features:
 - _decode_r7_max_ring edge cases
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from ergo_agent.defi.privacy_pool import PrivacyPoolClient
-from ergo_agent.tools.safety import SafetyConfig, SafetyViolation
-
+from ergo_agent.tools.safety import SafetyConfig
 
 # --- select_best_pool tests ---
 

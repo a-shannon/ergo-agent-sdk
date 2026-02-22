@@ -42,9 +42,9 @@ def test_openai_tool_names():
     tools = toolkit.to_openai_tools()
     names = {t["function"]["name"] for t in tools}
     required = {
-        "get_wallet_balance", 
-        "get_erg_price", 
-        "get_swap_quote", 
+        "get_wallet_balance",
+        "get_erg_price",
+        "get_swap_quote",
         "send_funds",
         "get_privacy_pools",
         "deposit_to_privacy_pool",

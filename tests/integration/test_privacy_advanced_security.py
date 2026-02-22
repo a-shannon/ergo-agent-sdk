@@ -9,14 +9,12 @@ Run with: python -m pytest tests/integration/test_privacy_advanced_security.py -
 """
 
 import os
-import time
 
 import pytest
 
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
-from ergo_agent.defi.privacy_pool import PrivacyPoolClient, CashValidationError
-
+from ergo_agent.defi.privacy_pool import CashValidationError, PrivacyPoolClient
 
 pytestmark = pytest.mark.integration
 
@@ -122,7 +120,7 @@ class TestRingPoisoningDefense:
         assert "privacy_score" in health
         assert health["effective_anonymity"] <= health["ring_size"]
 
-        print(f"\n[FIX 1.1 VERIFIED] Pool health report:")
+        print("\n[FIX 1.1 VERIFIED] Pool health report:")
         print(f"  Ring size: {health['ring_size']}")
         print(f"  Effective anonymity: {health['effective_anonymity']}")
         print(f"  Duplicate keys: {health['duplicate_keys']}")
@@ -148,7 +146,7 @@ class TestPoolCapacityDefense:
         assert "is_full" in pool
         assert "nullifiers" in pool
 
-        print(f"\n[FIX 1.2+5.2 VERIFIED] Enhanced pool metadata:")
+        print("\n[FIX 1.2+5.2 VERIFIED] Enhanced pool metadata:")
         print(f"  Token balance: {pool['token_balance']}")
         print(f"  Withdrawable: {pool['withdrawable']}")
         print(f"  Slots remaining: {pool['slots_remaining']}")
@@ -271,10 +269,10 @@ class TestPrivacyLeakage:
         pool = get_pool(cash_client)
         # Use a safe, non-banned key
         safe_key = "02" + "d1" * 32
-        builder = cash_client.build_deposit_tx(pool["pool_id"], safe_key, 100)
+        cash_client.build_deposit_tx(pool["pool_id"], safe_key, 100)
 
         print(f"\n[FINDING 3.2] Deposit funded from: {wallet.address}")
-        print(f"  -> Mitigation: Use fresh wallet per deposit or relay-funded deposits")
+        print("  -> Mitigation: Use fresh wallet per deposit or relay-funded deposits")
 
     def test_note_amount_deterministic(self, cash_client):
         """
@@ -302,7 +300,7 @@ class TestPrivacyLeakage:
         pool = get_pool(cash_client)
         health = cash_client.evaluate_pool_health(pool["pool_id"])
 
-        print(f"\n[FINDING 3.1b] Pool activity analysis via evaluate_pool_health():")
+        print("\n[FINDING 3.1b] Pool activity analysis via evaluate_pool_health():")
         print(f"  Ring size: {health['ring_size']}")
         print(f"  Token balance: {health['token_balance']}")
         print(f"  Denomination: {health['denomination']}")
@@ -335,9 +333,9 @@ class TestConcurrency:
         assert len(builder1._outputs) >= 1
         assert len(builder2._outputs) >= 1
 
-        print(f"\n[FINDING 4.1] Two competing deposits built against same UTXO")
-        print(f"  -> Both build OK, conflict happens at submission only")
-        print(f"  -> RECOMMENDATION: SDK should auto-retry with fresh UTXO on failure")
+        print("\n[FINDING 4.1] Two competing deposits built against same UTXO")
+        print("  -> Both build OK, conflict happens at submission only")
+        print("  -> RECOMMENDATION: SDK should auto-retry with fresh UTXO on failure")
 
     def test_competing_deposit_and_withdrawal(self, cash_client):
         """
@@ -359,8 +357,8 @@ class TestConcurrency:
         assert len(builder_dep._outputs) >= 1
         assert len(builder_wit._outputs) >= 1
 
-        print(f"\n[FINDING 4.1b] Competing deposit + withdrawal built against same UTXO")
-        print(f"  -> Both build OK, only one can succeed on-chain")
+        print("\n[FINDING 4.1b] Competing deposit + withdrawal built against same UTXO")
+        print("  -> Both build OK, only one can succeed on-chain")
 
 
 # =====================================================================
@@ -385,7 +383,7 @@ class TestLiveness:
 
         if health["withdrawable"] < health["ring_size"]:
             assert any("LOW_LIQUIDITY" in f for f in health["risk_flags"])
-            print(f"\n[FIX 5.2 VERIFIED] Low liquidity detected and flagged")
+            print("\n[FIX 5.2 VERIFIED] Low liquidity detected and flagged")
         else:
             print(f"\n[FIX 5.2 VERIFIED] Liquidity adequate: "
                   f"{health['withdrawable']} withdrawals available")
@@ -405,8 +403,8 @@ class TestLiveness:
         )
         assert len(builder._outputs) == 2
 
-        print(f"\n[FINDING 5.1] Self-serve withdrawal builds OK")
-        print(f"  -> User CAN withdraw without relayer (but privacy is reduced)")
+        print("\n[FINDING 5.1] Self-serve withdrawal builds OK")
+        print("  -> User CAN withdraw without relayer (but privacy is reduced)")
 
     def test_safety_config_timing_fields(self):
         """
@@ -420,6 +418,6 @@ class TestLiveness:
         assert hasattr(cfg, "min_pool_ring_size")
         assert cfg.min_pool_ring_size == 4
 
-        print(f"\n[FIX 3.1 VERIFIED] Safety timing fields present:")
+        print("\n[FIX 3.1 VERIFIED] Safety timing fields present:")
         print(f"  min_withdrawal_delay_blocks: {cfg.min_withdrawal_delay_blocks}")
         print(f"  min_pool_ring_size: {cfg.min_pool_ring_size}")

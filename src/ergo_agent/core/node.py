@@ -100,7 +100,7 @@ class ErgoNode:
 
     def get_unspent_boxes(self, address: str, limit: int = 50) -> list[Box]:
         """Return unspent boxes (UTXOs) for an address.
-        
+
         Tries the local node's blockchain UTXO endpoint first (fastest,
         uses validated state), then falls back to the explorer API.
         """
@@ -121,7 +121,7 @@ class ErgoNode:
 
     def get_box_by_id(self, box_id: str) -> Box:
         """Return a specific box by ID.
-        
+
         Tries the local node's UTXO endpoints first (instant, no indexing lag),
         then falls back to the explorer API.
         """
@@ -214,7 +214,7 @@ class ErgoNode:
             )
             if response.status_code == 200:
                 return str(response.json())
-                
+
             error_text = response.text
             # If node is syncing, it rejects mempool txs. Fallback to Explorer.
             if response.status_code == 400 and "should be in UTXO" in error_text:
@@ -239,7 +239,7 @@ class ErgoNode:
                         return str(f_resp.json())
                 except Exception:
                     continue
-            raise ErgoNodeError("Transaction broadcast failed: All nodes and fallbacks timed out.")
+            raise ErgoNodeError("Transaction broadcast failed: All nodes and fallbacks timed out.") from None
 
     # ------------------------------------------------------------------
     # Script compilation

@@ -3,11 +3,12 @@ Unit tests for PrivacyPoolClient transaction builder logic.
 All node/wallet calls are mocked — no network required.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
-from ergo_agent.defi.privacy_pool import PrivacyPoolClient
+import pytest
+
 from ergo_agent.core.models import Box, Token
+from ergo_agent.defi.privacy_pool import PrivacyPoolClient
 
 
 def make_pool_box(

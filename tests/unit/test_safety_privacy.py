@@ -40,6 +40,7 @@ def test_unknown_destination_blocked():
 def test_dry_run_prevents_submission():
     """In dry_run mode, the toolkit should return dry_run status."""
     from unittest.mock import MagicMock
+
     from ergo_agent.tools.toolkit import ErgoToolkit
 
     node = MagicMock()
