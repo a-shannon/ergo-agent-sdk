@@ -14,7 +14,7 @@ The privacy pool protocol was subjected to a comprehensive security analysis cov
 | Pool Economics | 4 | ✅ Addressed |
 | Privacy Leakage | 3 | ✅ Mitigated |
 
-## Contract Guards (MiddayPoolV4.es)
+## Contract Guards (PrivacyPoolV4.es)
 
 The v4 contract includes 5 hardened guards:
 

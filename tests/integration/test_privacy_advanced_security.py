@@ -14,7 +14,7 @@ import pytest
 
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
-from ergo_agent.defi.privacy_pool import CashValidationError, PrivacyPoolClient
+from ergo_agent.defi.privacy_pool import PoolValidationError, PrivacyPoolClient
 
 pytestmark = pytest.mark.integration
 
@@ -99,7 +99,7 @@ class TestRingPoisoningDefense:
             if existing_key is None:
                 pytest.skip("All keys in R4 are banned constants (pre-hardening deposits)")
 
-            with pytest.raises(CashValidationError, match="already exists"):
+            with pytest.raises(PoolValidationError, match="already exists"):
                 cash_client.build_deposit_tx(pool["pool_id"], existing_key, 100)
 
             print(f"\n[FIX 2.3 VERIFIED] Duplicate key {existing_key[:16]}... correctly blocked")
@@ -172,7 +172,7 @@ class TestKeyImageDefenses:
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
-        with pytest.raises(CashValidationError, match="group generator"):
+        with pytest.raises(PoolValidationError, match="group generator"):
             cash_client.build_withdrawal_tx(
                 pool["pool_id"],
                 cash_client.wallet.address,
@@ -189,7 +189,7 @@ class TestKeyImageDefenses:
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
-        with pytest.raises(CashValidationError, match="H constant"):
+        with pytest.raises(PoolValidationError, match="H constant"):
             cash_client.build_withdrawal_tx(
                 pool["pool_id"],
                 cash_client.wallet.address,
@@ -204,7 +204,7 @@ class TestKeyImageDefenses:
         """
         pool = get_pool(cash_client)
 
-        with pytest.raises(CashValidationError, match="group generator"):
+        with pytest.raises(PoolValidationError, match="group generator"):
             cash_client.build_deposit_tx(
                 pool["pool_id"],
                 GROUP_GENERATOR,
@@ -219,7 +219,7 @@ class TestKeyImageDefenses:
         """
         pool = get_pool(cash_client)
 
-        with pytest.raises(CashValidationError, match="H constant"):
+        with pytest.raises(PoolValidationError, match="H constant"):
             cash_client.build_deposit_tx(
                 pool["pool_id"],
                 H_CONSTANT,
@@ -235,15 +235,15 @@ class TestKeyImageDefenses:
         pool = get_pool(cash_client)
 
         # Wrong prefix (04 = uncompressed)
-        with pytest.raises(CashValidationError, match="must start with 02 or 03"):
+        with pytest.raises(PoolValidationError, match="must start with 02 or 03"):
             cash_client.build_deposit_tx(pool["pool_id"], "04" + "ab" * 32, 100)
 
         # Too short
-        with pytest.raises(CashValidationError, match="66 hex chars"):
+        with pytest.raises(PoolValidationError, match="66 hex chars"):
             cash_client.build_deposit_tx(pool["pool_id"], "02abcd", 100)
 
         # Not hex
-        with pytest.raises(CashValidationError, match="not valid hex"):
+        with pytest.raises(PoolValidationError, match="not valid hex"):
             cash_client.build_deposit_tx(pool["pool_id"], "02" + "zz" * 32, 100)
 
         print("\n[FIX 2.2c VERIFIED] Invalid key formats correctly rejected")

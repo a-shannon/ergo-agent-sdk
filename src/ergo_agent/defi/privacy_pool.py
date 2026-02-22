@@ -36,7 +36,7 @@ H_CONSTANT = "02eab569326ae73e525b96643b2c31300e822007c91faf0c356226c4942ebe9eb2
 _BANNED_KEYS = frozenset({GROUP_GENERATOR, H_CONSTANT})
 
 
-class CashValidationError(ValueError):
+class PoolValidationError(ValueError):
     """Raised when SDK-level validation catches a dangerous input."""
     pass
 
@@ -72,38 +72,38 @@ class PrivacyPoolClient:
         - Starts with 02 or 03 (compressed point prefix)
         - Not a banned protocol constant (groupGenerator, H)
 
-        Raises CashValidationError if invalid.
+        Raises PoolValidationError if invalid.
         """
         if not hex_str or not isinstance(hex_str, str):
-            raise CashValidationError(f"Invalid {label}: must be a hex string, got {type(hex_str)}")
+            raise PoolValidationError(f"Invalid {label}: must be a hex string, got {type(hex_str)}")
 
         hex_str = hex_str.lower()
 
         if len(hex_str) != 66:
-            raise CashValidationError(
+            raise PoolValidationError(
                 f"Invalid {label}: expected 66 hex chars (33 bytes), got {len(hex_str)}"
             )
 
         if hex_str[:2] not in ("02", "03"):
-            raise CashValidationError(
+            raise PoolValidationError(
                 f"Invalid {label}: must start with 02 or 03, got {hex_str[:2]}"
             )
 
         try:
             bytes.fromhex(hex_str)
         except ValueError as err:
-            raise CashValidationError(f"Invalid {label}: not valid hex") from err
+            raise PoolValidationError(f"Invalid {label}: not valid hex") from err
 
         # [FIX 2.1, 2.1b] Block known dangerous values
         if hex_str in _BANNED_KEYS:
             if hex_str == GROUP_GENERATOR:
-                raise CashValidationError(
+                raise PoolValidationError(
                     f"SECURITY: {label} is the secp256k1 group generator. "
                     f"Using it as a key image would permanently poison the nullifier list. "
                     f"Using it as a deposit key would create a trivially provable slot."
                 )
             elif hex_str == H_CONSTANT:
-                raise CashValidationError(
+                raise PoolValidationError(
                     f"SECURITY: {label} is the protocol H constant. "
                     f"Using it would compromise the DH tuple proof security."
                 )
@@ -112,7 +112,7 @@ class PrivacyPoolClient:
         """
         [FIX 2.3] Check if the stealth key already exists in the pool's R4 collection.
 
-        Raises CashValidationError if duplicate detected.
+        Raises PoolValidationError if duplicate detected.
         """
         if not pool_r4_hex or len(pool_r4_hex) <= 4:
             return  # Empty pool, no duplicates possible
@@ -132,7 +132,7 @@ class PrivacyPoolClient:
                 if end <= len(data):
                     existing_key = data[start:end].lower()
                     if existing_key == new_key_lower:
-                        raise CashValidationError(
+                        raise PoolValidationError(
                             f"SECURITY: Stealth key {new_key[:16]}... already exists "
                             f"in pool R4 at position {i}. Duplicate keys inflate ring "
                             f"size without adding real anonymity."
@@ -142,7 +142,7 @@ class PrivacyPoolClient:
         """
         [FIX double-spend] Check if the key image already exists in the pool's R5 nullifier list.
 
-        Raises CashValidationError if the key image has already been used.
+        Raises PoolValidationError if the key image has already been used.
         """
         if not pool_r5_hex or pool_r5_hex == "1300" or len(pool_r5_hex) <= 4:
             return  # No nullifiers yet
@@ -160,7 +160,7 @@ class PrivacyPoolClient:
                 if end <= len(data):
                     existing = data[start:end].lower()
                     if existing == key_image_lower:
-                        raise CashValidationError(
+                        raise PoolValidationError(
                             f"DOUBLE-SPEND: Key image {key_image[:16]}... already "
                             f"exists in R5 nullifier list at position {i}. "
                             f"This key image has already been used for a withdrawal."
@@ -426,7 +426,7 @@ class PrivacyPoolClient:
             pool_r7 = pool_r7.get("serializedValue", "0420")
         max_ring = self._decode_r7_max_ring(pool_r7)
         if current_size >= max_ring:
-            raise CashValidationError(
+            raise PoolValidationError(
                 f"Pool is full: {current_size}/{max_ring} slots used. "
                 f"Cannot accept new deposits."
             )
