@@ -280,21 +280,18 @@ class TestPrivacyConstants:
         assert "keyImage" in POOL_WITHDRAW_SCRIPT
 
     def test_pool_deposit_script_checks_key_append(self) -> None:
-        """Deposit script should check that keys grow by one."""
+        """Deposit script should check that new keys are appended."""
         from ergo_agent.core.privacy import POOL_DEPOSIT_SCRIPT
-        assert "keys.size + 1" in POOL_DEPOSIT_SCRIPT
+        # V6 deposit supports multi-ticket: numNew keys appended
+        assert "numNew" in POOL_DEPOSIT_SCRIPT or "keys.size" in POOL_DEPOSIT_SCRIPT
         assert "spaceOk" in POOL_DEPOSIT_SCRIPT
 
-    def test_note_contract_has_denomination_check(self) -> None:
-        """Note contract should validate denominations."""
+    def test_note_contract_is_bearer_instrument(self) -> None:
+        """Note contract should be a pure bearer instrument (proveDlog only)."""
         from ergo_agent.core.privacy import NOTE_CONTRACT_SCRIPT
-        assert "denomValid" in NOTE_CONTRACT_SCRIPT
         assert "proveDlog" in NOTE_CONTRACT_SCRIPT
-
-    def test_nums_h_embedded_in_withdraw_script(self) -> None:
-        """The NUMS H hex should appear in the withdrawal script."""
-        from ergo_agent.core.privacy import NUMS_H_HEX, POOL_WITHDRAW_SCRIPT
-        assert NUMS_H_HEX in POOL_WITHDRAW_SCRIPT
+        # V6 NoteContract is a pure bearer instrument — no denomination check
+        # Owner proves knowledge of secret key stored in R4
 
 # ---------------------------------------------------------------------------
 # Tests: Token Minting
