@@ -32,11 +32,11 @@ pool = PrivacyPoolClient(node=node, wallet=wallet)
 
 ```python
 pools = pool.get_active_pools(denomination=100)
-for pool in pools:
-    print(f"Pool: {pool['pool_id'][:16]}...")
-    print(f"  Ring: {pool['depositors']}/{pool['max_depositors']}")
-    print(f"  Slots: {pool['slots_remaining']}")
-    print(f"  Tokens: {pool['token_balance']}")
+for p in pools:
+    print(f"Pool: {p['pool_id'][:16]}...")
+    print(f"  Ring: {p['depositors']}/{p['max_depositors']}")
+    print(f"  Slots: {p['slots_remaining']}")
+    print(f"  Tokens: {p['token_balance']}")
 ```
 
 ### Auto-Select Best Pool
@@ -50,15 +50,22 @@ if best:
 ## 2. Deposit
 
 ```python
-stealth_key = "02..."  # 33-byte compressed secp256k1 public key
-pool_id = best["pool_id"]
+from ergo_agent.core.privacy import generate_fresh_secret
 
+# Generate a one-time secret + public key pair
+secret_hex, stealth_key = generate_fresh_secret()
+
+pool_id = best["pool_id"]
 builder = pool.build_deposit_tx(pool_id, stealth_key, denomination=100)
 tx = builder.build()
 signed = wallet.sign_transaction(tx, node)
 tx_id = node.submit_transaction(signed)
 print(f"Deposit TX: {tx_id}")
 ```
+
+!!! danger "Save Your Secret Key"
+    You **must** save `secret_hex` securely — it is required for withdrawal.
+    Losing it means losing access to your deposited tokens permanently.
 
 !!! warning "Security Validations"
     The SDK automatically blocks:
@@ -71,14 +78,21 @@ print(f"Deposit TX: {tx_id}")
 ## 3. Withdrawal
 
 ```python
-key_image = "03..."  # Derived from your secret key
-recipient = "9h..."  # Virgin Ergo address
+# Use the secret_hex saved during deposit
+recipient = "9h..."  # Fresh Ergo address (never used before)
 
-builder = pool.build_withdrawal_tx(pool_id, recipient, key_image)
+builder = pool.build_withdrawal_tx(pool_id, recipient, secret_hex)
 tx = builder.build()
 signed = wallet.sign_transaction(tx, node)
 tx_id = node.submit_transaction(signed)
 ```
+
+The SDK handles everything internally:
+
+1. **Computes the key image** (nullifier) from your secret: `M = secret × H`
+2. **Generates the AvlTree insert proof** via `ergo_avltree`
+3. **Serializes context extension** variables with correct Sigma types
+4. **Builds the ring signature** proof (handled by the node's prover at signing time)
 
 !!! danger "Privacy Best Practices"
     - **Never reuse** the recipient withdrawal address
@@ -98,14 +112,35 @@ print(f"Risk Flags: {health['risk_flags']}")
 **Privacy Score Levels:**
 
 | Score | Meaning |
-|-------|---------|
+|-------|---------| 
 | EXCELLENT | 8+ unique depositors, no risk flags |
 | GOOD | 6-7 unique depositors |
 | FAIR | 4-5 unique depositors |
 | POOR | 2-3 unique depositors |
 | CRITICAL | <2 unique depositors or multiple risk flags |
 
-## 5. API Bridge (Relayer)
+## 5. Toolkit (Agent-Facing API)
+
+If you're using the `ErgoToolkit` for AI agent integration:
+
+```python
+from ergo_agent.tools.toolkit import ErgoToolkit
+
+toolkit = ErgoToolkit(node=node, wallet=wallet)
+
+# Deposit — auto-generates and returns the secret key
+result = toolkit.deposit_to_privacy_pool(pool_id="...", denomination=100)
+secret_key = result["secret_key"]  # Save this!
+
+# Withdraw — pass the secret key, everything else is computed internally
+result = toolkit.withdraw_from_privacy_pool(
+    pool_id="...",
+    recipient_address="9h...",
+    secret_key=secret_key,
+)
+```
+
+## 6. API Bridge (Relayer)
 
 For frontend integration, use the FastAPI relayer:
 

@@ -51,7 +51,7 @@ def test_dry_run_prevents_submission():
     cfg = SafetyConfig(dry_run=True)
     tk = ErgoToolkit(node=node, wallet=wallet, safety=cfg)
 
-    result = tk.deposit_to_privacy_pool(pool_id="test_pool", denomination=100)
+    result = tk.privacy_pool_deposit(tier="1_erg")
     assert result["status"] == "dry_run"
 
 

@@ -46,9 +46,10 @@ def test_openai_tool_names():
         "get_erg_price",
         "get_swap_quote",
         "send_funds",
-        "get_privacy_pools",
-        "deposit_to_privacy_pool",
-        "withdraw_from_privacy_pool"
+        "privacy_pool_get_status",
+        "privacy_pool_deposit",
+        "privacy_pool_withdraw",
+        "privacy_pool_export_view_key",
     }
     assert required.issubset(names)
 

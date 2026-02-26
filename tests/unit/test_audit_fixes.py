@@ -96,14 +96,14 @@ class TestSafetyPrivacyMitigations:
 
     def test_validate_privacy_ok(self):
         config = SafetyConfig(min_pool_ring_size=4, min_withdrawal_delay_blocks=100)
-        warnings = config.validate_privacy_withdrawal(
+        warnings = config.validate_privacy_pool_withdrawal(
             pool_ring_size=8, deposit_height=1000, current_height=1200
         )
         assert warnings == []
 
     def test_validate_privacy_low_ring(self):
         config = SafetyConfig(min_pool_ring_size=4)
-        warnings = config.validate_privacy_withdrawal(
+        warnings = config.validate_privacy_pool_withdrawal(
             pool_ring_size=2, deposit_height=None, current_height=1200
         )
         assert len(warnings) == 1
@@ -111,7 +111,7 @@ class TestSafetyPrivacyMitigations:
 
     def test_validate_privacy_too_soon(self):
         config = SafetyConfig(min_withdrawal_delay_blocks=100)
-        warnings = config.validate_privacy_withdrawal(
+        warnings = config.validate_privacy_pool_withdrawal(
             pool_ring_size=8, deposit_height=1150, current_height=1200
         )
         assert len(warnings) == 1
@@ -119,7 +119,7 @@ class TestSafetyPrivacyMitigations:
 
     def test_validate_privacy_both_flags(self):
         config = SafetyConfig(min_pool_ring_size=4, min_withdrawal_delay_blocks=100)
-        warnings = config.validate_privacy_withdrawal(
+        warnings = config.validate_privacy_pool_withdrawal(
             pool_ring_size=2, deposit_height=1150, current_height=1200
         )
         assert len(warnings) == 2

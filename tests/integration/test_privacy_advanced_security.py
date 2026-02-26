@@ -166,18 +166,13 @@ class TestKeyImageDefenses:
     def test_group_generator_blocked_as_key_image(self, cash_client):
         """
         [FIX 2.1] groupGenerator must be REJECTED as key image.
-        Before hardening, this built successfully.
+        Since build_withdrawal_tx now accepts secret_hex and computes key_image
+        internally, we test the validation layer directly.
         """
-        pool = get_pool(cash_client)
-        if pool["depositors"] < 2:
-            pytest.skip("Pool ring < 2")
+        from ergo_agent.defi.privacy_pool import PoolValidationError
 
         with pytest.raises(PoolValidationError, match="group generator"):
-            cash_client.build_withdrawal_tx(
-                pool["pool_id"],
-                cash_client.wallet.address,
-                GROUP_GENERATOR,
-            )
+            cash_client._validate_compressed_point(GROUP_GENERATOR, label="key image")
 
         print("\n[FIX 2.1 VERIFIED] groupGenerator correctly blocked as key image")
 
@@ -185,16 +180,10 @@ class TestKeyImageDefenses:
         """
         [FIX 2.1b] H constant must be REJECTED as key image.
         """
-        pool = get_pool(cash_client)
-        if pool["depositors"] < 2:
-            pytest.skip("Pool ring < 2")
+        from ergo_agent.defi.privacy_pool import PoolValidationError
 
         with pytest.raises(PoolValidationError, match="H constant"):
-            cash_client.build_withdrawal_tx(
-                pool["pool_id"],
-                cash_client.wallet.address,
-                H_CONSTANT,
-            )
+            cash_client._validate_compressed_point(H_CONSTANT, label="key image")
 
         print("\n[FIX 2.1b VERIFIED] H constant correctly blocked as key image")
 
@@ -276,19 +265,28 @@ class TestPrivacyLeakage:
 
     def test_note_amount_deterministic(self, cash_client):
         """
-        [FINDING 3.5] All notes from denomination-100 pools are exactly 99 tokens.
+        [FINDING 3.5] Note amount always equals the pool's exact denomination (v6: no fee deduction).
         """
         pool = get_pool(cash_client)
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
-        safe_key = "03" + "d2" * 32
+        # Use a secret key instead of raw key image
+        safe_secret = "d2" * 32
         builder = cash_client.build_withdrawal_tx(
-            pool["pool_id"], cash_client.wallet.address, safe_key,
+            pool["pool_id"], cash_client.wallet.address, safe_secret,
         )
 
+        # Get actual denomination from the pool box R6 (not the filter param)
+        pool_box = cash_client.node.get_box_by_id(pool["pool_id"])
+        r6 = pool_box.additional_registers.get("R6", "05c801")
+        if isinstance(r6, dict):
+            r6 = r6.get("serializedValue", "05c801")
+        actual_denom = cash_client._decode_r6_denomination(r6)
+
         note_amount = builder._outputs[1]["tokens"][0]["amount"]
-        assert note_amount == 99
+        # V6: note amount == exact denomination from R6 (no 99% fee)
+        assert note_amount == actual_denom
 
         print(f"\n[FINDING 3.5] Note amount always {note_amount} tokens (deterministic)")
 
@@ -347,11 +345,11 @@ class TestConcurrency:
             pytest.skip("Pool ring < 2")
 
         dep_key = "02" + "c3" * 32
-        wit_key = "03" + "c4" * 32
+        wit_secret = "c4" * 32  # V6: pass secret instead of key image
 
         builder_dep = cash_client.build_deposit_tx(pool["pool_id"], dep_key, 100)
         builder_wit = cash_client.build_withdrawal_tx(
-            pool["pool_id"], cash_client.wallet.address, wit_key,
+            pool["pool_id"], cash_client.wallet.address, wit_secret,
         )
 
         assert len(builder_dep._outputs) >= 1
@@ -397,9 +395,9 @@ class TestLiveness:
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
-        safe_key = "03" + "c5" * 32
+        safe_secret = "c5" * 32  # V6: pass secret instead of key image
         builder = cash_client.build_withdrawal_tx(
-            pool["pool_id"], wallet.address, safe_key,
+            pool["pool_id"], wallet.address, safe_secret,
         )
         assert len(builder._outputs) == 2
 

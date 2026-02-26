@@ -178,7 +178,7 @@ def process_directory():
 
 
 def delete_whitepaper():
-    """Remove the $CASH whitepaper from the SDK (it belongs to the Midday project)."""
+    """Remove the $CASH whitepaper from the SDK (it belongs to the privacy pool project)."""
     wp = os.path.join(SDK_ROOT, "docs", "whitepapers", "cash-v3-whitepaper.md")
     if os.path.exists(wp):
         os.remove(wp)

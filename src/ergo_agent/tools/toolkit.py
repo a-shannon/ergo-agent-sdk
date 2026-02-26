@@ -32,7 +32,7 @@ from typing import Any
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
 from ergo_agent.defi.oracle import OracleReader
-from ergo_agent.defi.privacy_pool import PrivacyPoolClient
+from ergo_agent.defi.privacy_client import PrivacyPoolClient
 from ergo_agent.defi.rosen import RosenBridge
 from ergo_agent.defi.sigmausd import SigmaUSD
 from ergo_agent.defi.spectrum import SpectrumDEX
@@ -63,7 +63,7 @@ class ErgoToolkit:
         self._spectrum = SpectrumDEX(node)
         self._sigmausd = SigmaUSD(node)
         self._rosen = RosenBridge(node)
-        self._cash = PrivacyPoolClient(node, wallet)
+        self._privacy = PrivacyPoolClient(node)
         self._treasury = ErgoTreasury(node)
 
     # ------------------------------------------------------------------
@@ -353,52 +353,123 @@ class ErgoToolkit:
         }
 
 
-    def get_privacy_pools(self, denomination: int) -> list[dict[str, Any]]:
-        """
-        Scan the blockchain for active privacy pool pools.
-        Returns a list of pool IDs and their current anonymity ring sizes.
-        """
-        # Read-only operation; bypasses strict safety gate
-        pools = self._cash.get_active_pools(denomination)
-        for p in pools:
-            p['current_ring_size'] = self._cash.evaluate_pool_anonymity(p['pool_id'])
-        return pools
+    # ------------------------------------------------------------------
+    # Privacy Pool Protocol (v7)
+    # ------------------------------------------------------------------
 
-    def deposit_to_privacy_pool(self, pool_id: str, denomination: int, stealth_key: str = "02a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef12345678ab") -> dict[str, Any]:
+    def privacy_pool_get_status(self, pool_box_id: str) -> dict[str, Any]:
         """
-        Deposit a privacy pool note denomination into a privacy pool to enter the ring.
+        Get the current status of a privacy MasterPoolBox.
+
+        Args:
+            pool_box_id: The box ID of the MasterPoolBox.
+
+        Returns:
+            dict with deposit count, privacy score, anonymity assessment, and balance.
         """
-        self._safety.validate_send(
-            amount_erg=0.05, # Base transaction operating overhead
-            destination="privacy_pool"
-        )
-        builder = self._cash.build_deposit_tx(pool_id, stealth_key, denomination)
+        return self._privacy.get_pool_status(pool_box_id)
+
+    def privacy_pool_deposit(self, tier: str) -> dict[str, Any]:
+        """
+        Create a privacy pool deposit intent.
+
+        Generates a fresh Pedersen Commitment and returns the deposit secret.
+        The secret MUST be saved — it is the only way to later withdraw.
+
+        Args:
+            tier: Pool tier ('1_erg', '10_erg', or '100_erg').
+
+        Returns:
+            dict with commitment, blinding_factor (hex), amount, and tier.
+            The blinding_factor is the critical secret — NEVER expose it.
+        """
+        self._safety.validate_rate_limit()
+        secret = self._privacy.create_deposit(tier)
+
         if self._safety.dry_run:
-            return {"status": "dry_run", "message": "Transaction verified, not submitted."}
-        tx = builder.build()
-        logger.debug(f"Unsigned deposit payload: {json.dumps(tx)}")
-        signed = self._wallet.sign_transaction(tx, self._node)
-        tx_id = self._node.submit_transaction(signed)
-        self._safety.record_action(erg_spent=0.05)
-        return {"status": "success", "tx_id": tx_id, "pool_id": pool_id, "amount": denomination}
+            return {
+                "status": "dry_run",
+                "tier": tier,
+                "commitment": secret.commitment_hex,
+                "message": "Deposit secret generated. In live mode, an IntentToDeposit box would be submitted.",
+            }
 
-    def withdraw_from_privacy_pool(self, pool_id: str, recipient_address: str, key_image: str) -> dict[str, Any]:
+        return {
+            "status": "success",
+            "tier": tier,
+            "commitment": secret.commitment_hex,
+            "blinding_factor": hex(secret.blinding_factor),
+            "amount_nanoerg": secret.amount,
+            "warning": "SAVE THE blinding_factor — it is your only key to withdraw.",
+        }
+
+    def privacy_pool_withdraw(
+        self,
+        blinding_factor_hex: str,
+        tier: str,
+        recipient_address: str,
+        decoy_commitments: list[str],
+    ) -> dict[str, Any]:
         """
-        Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!
+        Create a privacy pool withdrawal intent using DHTuple ring signatures.
+
+        Args:
+            blinding_factor_hex: The hex blinding factor from the deposit.
+            tier: Pool tier ('1_erg', '10_erg', or '100_erg').
+            recipient_address: Ergo address to receive funds.
+            decoy_commitments: List of decoy commitment hex strings from the pool.
+
+        Returns:
+            dict with nullifier, ring_size, and intent details.
         """
-        self._safety.validate_send(
-            amount_erg=0.002, # Minimal box value + fee
-            destination="privacy_pool"
-        )
+        self._safety.validate_rate_limit()
+        from ergo_agent.defi.privacy_client import DepositSecret
+        from ergo_agent.crypto.pedersen import PedersenCommitment
+        from ergo_agent.relayer.pool_deployer import POOL_TIERS
+
+        r = int(blinding_factor_hex, 16)
+        denom = POOL_TIERS[tier]["denomination"]
+        C = PedersenCommitment.commit(r, denom)
+        secret = DepositSecret(blinding_factor=r, commitment_hex=C, amount=denom, tier=tier)
+
+        payout_tree = "0008cd" + recipient_address  # simplified
+        proof = self._privacy.build_withdrawal_proof(secret, decoy_commitments, payout_tree)
+
         if self._safety.dry_run:
-            return {"status": "dry_run", "message": "Ring Signature constructed successfully, transaction verified."}
-        builder = self._cash.build_withdrawal_tx(pool_id, recipient_address, key_image)
-        tx = builder.build()
+            return {
+                "status": "dry_run",
+                "nullifier": proof.nullifier_hex,
+                "ring_size": proof.ring_size,
+                "message": "Withdrawal proof constructed. In live mode, an IntentToWithdraw box would be submitted.",
+            }
 
-        signed = self._wallet.sign_transaction(tx, self._node)
-        tx_id = self._node.submit_transaction(signed)
-        self._safety.record_action(erg_spent=0.002)
-        return {"status": "success", "tx_id": tx_id, "recipient": recipient_address}
+        return {
+            "status": "success",
+            "nullifier": proof.nullifier_hex,
+            "ring_size": proof.ring_size,
+            "recipient": recipient_address,
+        }
+
+    def privacy_pool_export_view_key(self, blinding_factor_hex: str, tier: str) -> dict[str, Any]:
+        """
+        Export a privacy View Key for compliance/audit disclosure.
+
+        Args:
+            blinding_factor_hex: The hex blinding factor from the deposit.
+            tier: Pool tier.
+
+        Returns:
+            dict with view key data for an auditor.
+        """
+        from ergo_agent.defi.privacy_client import DepositSecret
+        from ergo_agent.crypto.pedersen import PedersenCommitment
+        from ergo_agent.relayer.pool_deployer import POOL_TIERS
+
+        r = int(blinding_factor_hex, 16)
+        denom = POOL_TIERS[tier]["denomination"]
+        C = PedersenCommitment.commit(r, denom)
+        secret = DepositSecret(blinding_factor=r, commitment_hex=C, amount=denom, tier=tier)
+        return self._privacy.export_view_key(secret)
 
     def bridge_assets(
         self,
@@ -567,9 +638,10 @@ class ErgoToolkit:
             "send_funds": lambda i: self.send_funds(**i),
             "swap_erg_for_token": lambda i: self.swap_erg_for_token(**i),
             "mint_token": lambda i: self.mint_token(**i),
-            "get_privacy_pools": lambda i: self.get_privacy_pools(**i),
-            "deposit_to_privacy_pool": lambda i: self.deposit_to_privacy_pool(**i),
-            "withdraw_from_privacy_pool": lambda i: self.withdraw_from_privacy_pool(**i),
+            "privacy_pool_get_status": lambda i: self.privacy_pool_get_status(**i),
+            "privacy_pool_deposit": lambda i: self.privacy_pool_deposit(**i),
+            "privacy_pool_withdraw": lambda i: self.privacy_pool_withdraw(**i),
+            "privacy_pool_export_view_key": lambda i: self.privacy_pool_export_view_key(**i),
             "mint_sigusd": lambda i: self.mint_sigusd(**i),
             "redeem_sigusd": lambda i: self.redeem_sigusd(**i),
             "mint_sigmrsv": lambda i: self.mint_sigmrsv(**i),

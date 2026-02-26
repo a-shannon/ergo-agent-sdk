@@ -165,7 +165,7 @@ class SafetyConfig:
         import random
         return random.uniform(30.0, 300.0)
 
-    def validate_privacy_withdrawal(
+    def validate_privacy_pool_withdrawal(
         self,
         pool_ring_size: int,
         deposit_height: int | None,

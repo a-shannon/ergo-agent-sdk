@@ -112,25 +112,42 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         ))
 
     @lc_tool
-    def get_privacy_pools(denomination: int) -> str:
-        """Scan the blockchain for active privacy pool privacy pools."""
+    def privacy_pool_get_status(pool_box_id: str) -> str:
+        """Get the current status of a privacy MasterPoolBox (deposit count, privacy score, anonymity assessment)."""
         import json
-        return json.dumps(toolkit.get_privacy_pools(denomination=denomination))
+        return json.dumps(toolkit.privacy_pool_get_status(pool_box_id=pool_box_id))
 
     @lc_tool
-    def deposit_to_privacy_pool(pool_id: str, denomination: int) -> str:
-        """Deposit a privacy pool note denomination into a privacy pool to enter the ring."""
+    def privacy_pool_deposit(tier: str) -> str:
+        """Create a privacy pool deposit intent. Returns blinding_factor — MUST be saved for withdrawal.
+        tier: '1_erg', '10_erg', or '100_erg'"""
         import json
-        return json.dumps(toolkit.deposit_to_privacy_pool(pool_id=pool_id, denomination=denomination))
+        return json.dumps(toolkit.privacy_pool_deposit(tier=tier))
 
     @lc_tool
-    def withdraw_from_privacy_pool(pool_id: str, recipient_address: str, key_image: str) -> str:
-        """Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!"""
+    def privacy_pool_withdraw(blinding_factor_hex: str, tier: str, recipient_address: str, decoy_commitments: list[str]) -> str:
+        """Create a privacy pool withdrawal intent using DHTuple ring signatures.
+        blinding_factor_hex: hex blinding factor from deposit
+        tier: pool tier ('1_erg', '10_erg', '100_erg')
+        recipient_address: destination Ergo address
+        decoy_commitments: list of decoy commitment hexes from the pool"""
         import json
-        return json.dumps(toolkit.withdraw_from_privacy_pool(
-            pool_id=pool_id,
+        return json.dumps(toolkit.privacy_pool_withdraw(
+            blinding_factor_hex=blinding_factor_hex,
+            tier=tier,
             recipient_address=recipient_address,
-            key_image=key_image
+            decoy_commitments=decoy_commitments,
+        ))
+
+    @lc_tool
+    def privacy_pool_export_view_key(blinding_factor_hex: str, tier: str) -> str:
+        """Export a privacy View Key for compliance/audit disclosure.
+        blinding_factor_hex: hex blinding factor from deposit
+        tier: pool tier"""
+        import json
+        return json.dumps(toolkit.privacy_pool_export_view_key(
+            blinding_factor_hex=blinding_factor_hex,
+            tier=tier,
         ))
 
     return [
@@ -144,7 +161,8 @@ def build_langchain_tools(toolkit: ErgoToolkit) -> list[Any]:
         get_sigmausd_state,
         get_rosen_bridge_status,
         mint_token,
-        get_privacy_pools,
-        deposit_to_privacy_pool,
-        withdraw_from_privacy_pool,
+        privacy_pool_get_status,
+        privacy_pool_deposit,
+        privacy_pool_withdraw,
+        privacy_pool_export_view_key,
     ]

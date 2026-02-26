@@ -26,6 +26,8 @@ dependencies = [
     "typing_extensions>=4.12.2",
     "mnemonic>=0.21",
     "ergo-lib-python>=0.28.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
 ]
 
 [project.optional-dependencies]

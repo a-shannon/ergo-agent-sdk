@@ -140,8 +140,8 @@ def test_withdrawal_uses_box_not_string(monkeypatch):
     pool_box = make_pool_box()
     node.get_box_by_id.return_value = pool_box
 
-    key_image = "03" + "ff" * 32
-    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", key_image)
+    secret_hex = "c" * 64  # Dummy 32-byte secret
+    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", secret_hex)
 
     # The explicit input should have a Box, not None (which indicates string-based)
     assert len(builder._explicit_inputs) == 1
@@ -149,24 +149,23 @@ def test_withdrawal_uses_box_not_string(monkeypatch):
 
 
 def test_withdrawal_appends_nullifier(monkeypatch):
-    """R5 in the output must contain the new key image."""
+    """R5 in the output must be an AvlTree digest (starts with 0x64)."""
     import ergo_agent.core.address as addr_mod
     monkeypatch.setattr(addr_mod, "address_to_ergo_tree", lambda *a, **kw: "0008cd03recipient")
 
     client, node = make_client()
-    pool_box = make_pool_box(r5="1301" + "03" + "aa" * 32)
+    pool_box = make_pool_box(r5="64befb05d26d04d4d4d1dc877f1ea2f879509a17191e5bd6e60ca98d3e3609a92500072100")
     node.get_box_by_id.return_value = pool_box
 
-    key_image = "03" + "bb" * 32
-    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", key_image)
+    # Use a secret key (build_withdrawal_tx now expects secret_hex)
+    secret_hex = "a" * 64  # Dummy 32-byte secret
+    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", secret_hex)
 
     out = builder._outputs[0]
     new_r5 = out["registers"]["R5"]
-    assert new_r5.endswith(key_image)
-
-    # Count should be 2 (was 1)
-    count = PrivacyPoolClient._read_vlq(new_r5[2:])
-    assert count == 2
+    # V6: R5 is AvlTree format (type byte 0x64)
+    assert new_r5.startswith("64")
+    assert len(new_r5) > 10  # Should contain a valid digest
 
 
 def test_withdrawal_dynamic_denomination(monkeypatch):
@@ -179,21 +178,21 @@ def test_withdrawal_dynamic_denomination(monkeypatch):
     pool_box = make_pool_box(r6="05d00f", token_amount=5000)
     node.get_box_by_id.return_value = pool_box
 
-    key_image = "03" + "cc" * 32
-    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", key_image)
+    secret_hex = "b" * 64  # Dummy 32-byte secret
+    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", secret_hex)
 
     # Pool output should deduct the decoded denomination, not 100
     pool_out = builder._outputs[0]
     denom = client._decode_r6_denomination("05d00f")
     assert pool_out["tokens"][0]["amount"] == 5000 - denom
 
-    # Note output should be 99% of denom
+    # V6: Note output is exact denomination (no 99% fee)
     note_out = builder._outputs[1]
-    assert note_out["tokens"][0]["amount"] == max(1, (denom * 99) // 100)
+    assert note_out["tokens"][0]["amount"] == denom
 
 
 def test_withdrawal_note_amount_floor(monkeypatch):
-    """For denom=1, note_amount must be at least 1 (not 0)."""
+    """For denom=1, note_amount must be at least 1."""
     import ergo_agent.core.address as addr_mod
     monkeypatch.setattr(addr_mod, "address_to_ergo_tree", lambda *a, **kw: "0008cd03recipient")
 
@@ -202,8 +201,8 @@ def test_withdrawal_note_amount_floor(monkeypatch):
     pool_box = make_pool_box(r6="0502", token_amount=100)
     node.get_box_by_id.return_value = pool_box
 
-    key_image = "03" + "dd" * 32
-    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", key_image)
+    secret_hex = "d" * 64  # Dummy 32-byte secret
+    builder = client.build_withdrawal_tx("abc123", "3WxRecipient", secret_hex)
 
     note_out = builder._outputs[1]
     assert note_out["tokens"][0]["amount"] >= 1

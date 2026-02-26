@@ -97,6 +97,7 @@ class Wallet:
         self,
         unsigned_tx: dict[str, Any],
         node: Any | None = None,
+        secrets: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Sign an unsigned transaction.
@@ -107,6 +108,11 @@ class Wallet:
         Args:
             unsigned_tx: the unsigned transaction dict
             node: ErgoNode instance (required for node_wallet mode)
+            secrets: Optional signing secrets for protocols requiring
+                extra proofs (e.g., ring signatures). Dict with:
+                - 'dlog': list of secret hex strings for proveDlog
+                - 'dht': list of DH tuple dicts with keys:
+                    'secret', 'g', 'h', 'u', 'v' (all compressed hex)
 
         Returns:
             dict: signed transaction ready for submission
@@ -117,7 +123,7 @@ class Wallet:
         if self._node_wallet:
             if node is None:
                 raise WalletError("node parameter required for node_wallet signing.")
-            return self._sign_via_node(unsigned_tx, node)
+            return self._sign_via_node(unsigned_tx, node, secrets=secrets)
 
         # Local signing — requires proper ergo-lib integration
         # TODO: Implement with sigma-rust Python bindings
@@ -128,7 +134,10 @@ class Wallet:
         )
 
     def _sign_via_node(
-        self, unsigned_tx: dict[str, Any], node: Any
+        self,
+        unsigned_tx: dict[str, Any],
+        node: Any,
+        secrets: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Sign transaction using the node's wallet API."""
         try:
@@ -157,16 +166,27 @@ class Wallet:
                         box_json_str = json.dumps(box_json)
                         box = chain.ErgoBox.from_json(box_json_str)
                         inputs_raw.append(bytes(box).hex())
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logging.getLogger("ergo_agent.wallet").warning(
+                            f"Failed to serialize box {box_id[:16]}... for inputsRaw: {e}"
+                        )
 
             payload = {"tx": unsigned_tx}
             if len(inputs_raw) == len(unsigned_tx.get("inputs", [])):
                 payload["inputsRaw"] = inputs_raw
+                payload["dataInputsRaw"] = []
+            if secrets:
+                payload["secrets"] = secrets
+
+            headers = {"Content-Type": "application/json"}
+            if hasattr(node, '_api_key') and node._api_key:
+                headers["api_key"] = node._api_key
 
             response = node._client.post(
                 f"{node.node_url}/wallet/transaction/sign",
                 json=payload,
+                headers=headers,
             )
             if response.status_code != 200:
                 raise WalletError(f"Node signing failed: {response.text}")

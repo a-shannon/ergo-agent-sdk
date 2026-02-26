@@ -65,10 +65,16 @@ Complete reference for all public classes and methods.
 ::: ergo_agent.core.privacy
     options:
       members:
+        - POOL_CONTRACT_SCRIPT
+        - NUMS_H_HEX
+        - generate_fresh_secret
+        - compute_key_image
+        - generate_avl_insert_proof
+        - serialize_context_extension
         - find_optimal_pool
         - build_pool_deposit_tx
         - build_pool_withdraw_tx
-        - NUMS_H_HEX
+        - decompose_into_tiers
 
 ### Data Models
 
@@ -167,6 +173,9 @@ Complete reference for all public classes and methods.
         - to_openai_tools
         - to_anthropic_tools
         - to_langchain_tools
+        - get_privacy_pools
+        - deposit_to_privacy_pool
+        - withdraw_from_privacy_pool
 
 ### SafetyConfig
 

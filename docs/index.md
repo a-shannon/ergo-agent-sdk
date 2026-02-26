@@ -40,6 +40,7 @@ That's it. No node required, no wallet keys, no setup. The public Explorer API i
 | 🌉 **Rosen Bridge** | Cross-chain asset bridging out of Ergo |
 | 🏛️ **DAO Treasuries** | Draft proposals and execute multi-sig actions |
 | 📊 **Oracle prices** | Live ERG/USD from Oracle Pool v2 |
+| 🔒 **Privacy Pools** | Deposit, withdraw, and monitor ring-signature privacy pools |
 | 🔧 **LLM-ready** | OpenAI, Anthropic, and LangChain schemas |
 | 🛡️ **Safety layer** | Per-tx limits, daily caps, contract whitelists |
 | 🔑 **Wallet signing** | Sign transactions via Ergo node wallet API |
@@ -50,3 +51,4 @@ That's it. No node required, no wallet keys, no setup. The public Explorer API i
 - [**Tutorial: Hello, Ergo!**](tutorial.md) — step-by-step walkthrough from zero to a working agent
 - [**Architecture**](architecture.md) — how the SDK is structured and how Ergo's eUTXO model works
 - [**API Reference**](api-reference.md) — complete reference for all classes and methods
+- [**Privacy Pools**](privacy-pool-guide.md) — deposit, withdraw, and monitor ring-signature privacy pools

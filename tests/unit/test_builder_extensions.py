@@ -282,8 +282,8 @@ class TestPrivacyConstants:
     def test_pool_deposit_script_checks_key_append(self) -> None:
         """Deposit script should check that new keys are appended."""
         from ergo_agent.core.privacy import POOL_DEPOSIT_SCRIPT
-        # V6 deposit supports multi-ticket: numNew keys appended
-        assert "numNew" in POOL_DEPOSIT_SCRIPT or "keys.size" in POOL_DEPOSIT_SCRIPT
+        # V6 deposit uses poolKeys.size for key management
+        assert "poolKeys" in POOL_DEPOSIT_SCRIPT or "keys.size" in POOL_DEPOSIT_SCRIPT
         assert "spaceOk" in POOL_DEPOSIT_SCRIPT
 
     def test_note_contract_is_bearer_instrument(self) -> None:

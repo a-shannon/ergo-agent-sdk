@@ -7,8 +7,8 @@ The SDK is organized into three layers. Each layer only depends on the one below
 ```mermaid
 graph TB
     A["🤖 tools/<br/>ErgoToolkit, SafetyConfig<br/>OpenAI / Anthropic / LangChain schemas"] --> B
-    B["💱 defi/<br/>OracleReader, SpectrumDEX"] --> C
-    C["⛓️ core/<br/>ErgoNode, Wallet, TransactionBuilder, Address"]
+    B["💱 defi/<br/>OracleReader, SpectrumDEX, SigmaUSD<br/>RosenBridge, PrivacyPoolClient, Treasury"] --> C
+    C["⛓️ core/<br/>ErgoNode, Wallet, TransactionBuilder<br/>Address, Privacy, Models"]
     
     style A fill:#7c3aed,color:#fff
     style B fill:#f59e0b,color:#000
@@ -23,9 +23,9 @@ The foundation. Handles all direct blockchain interaction.
 |---|---|
 | `ErgoNode` | REST client for the Explorer API and node API |
 | `Wallet` | Address management and transaction signing |
-| `TransactionBuilder` | UTXO selection, fee calculation, change handling |
+| `TransactionBuilder` | UTXO selection, fee calculation, change handling, explicit inputs + context extensions |
 | `address` | Base58 validation, ErgoTree derivation, checksum verification |
-| `privacy` | privacy pool ring-signature pool interactions and NUMS generators |
+| `privacy` | Privacy pool protocol: PrivacyPoolV6 contract, key image computation, AvlTree proofs, ring signature support |
 | `models` | Data classes: `Box`, `Balance`, `Token`, `Transaction`, `SwapQuote` |
 
 ### DeFi Layer (`ergo_agent.defi`)
@@ -36,6 +36,10 @@ Protocol-specific adapters built on top of core.
 |---|---|
 | `OracleReader` | Reads ERG/USD price from Oracle Pool v2 |
 | `SpectrumDEX` | Markets, swap quotes, and order construction for Spectrum Finance |
+| `SigmaUSD` | Mint and redeem SigUSD/SigRSV via the AgeUSD bank contract |
+| `RosenBridge` | Cross-chain asset bridging out of Ergo |
+| `PrivacyPoolClient` | Ring-signature privacy pools: deposit, withdraw, health monitoring |
+| `ErgoTreasury` | DAO proposal creation, voting, and execution |
 
 ### Tools Layer (`ergo_agent.tools`)
 
@@ -43,8 +47,8 @@ The AI-facing interface. Wraps everything into LLM-compatible tool calls.
 
 | Class | Purpose |
 |---|---|
-| `ErgoToolkit` | Main entry point — 7 tools, JSON output, `execute_tool()` dispatch |
-| `SafetyConfig` | Per-tx limits, daily caps, rate limiting, contract whitelist |
+| `ErgoToolkit` | Main entry point — 15 tools, JSON output, `execute_tool()` dispatch |
+| `SafetyConfig` | Per-tx limits, daily caps, rate limiting, contract whitelist, privacy timing guards |
 | `to_openai_tools()` | OpenAI function-calling schema |
 | `to_anthropic_tools()` | Anthropic tool use schema |
 | `to_langchain_tools()` | LangChain `@tool` wrappers |
@@ -89,14 +93,15 @@ Unlike Bitcoin UTXOs, Ergo boxes have:
 
 This is why the SDK has a `TransactionBuilder` — constructing a transaction means selecting input boxes, creating output boxes, and handling change.
 
-### Advanced Cryptography: privacy pool Ring Signatures
+### Advanced Cryptography: Privacy Pool Ring Signatures
 
-Because Ergo uses Sigma Protocols natively, the SDK's `TransactionBuilder` and `privacy` modules support advanced zero-knowledge proofs like **Ring Signatures** out of the box. For example, privacy pool creates application-level privacy pools:
+Because Ergo uses Sigma Protocols natively, the SDK's `TransactionBuilder` and `privacy` modules support advanced zero-knowledge proofs like **Ring Signatures** out of the box:
 
-1. **Deposit**: A user adds their public key to a `PoolBox` (in register `R4`) and deposits tokens.
-2. **Withdrawal**: The user generates a ring signature (`proveDlog` combined with `proveDHTuple`) proving they own *one* of the keys in the pool, without revealing which one. They spend the key image (nullifier) to prevent double spending.
+1. **Deposit**: A user generates a fresh secret+public key pair, adds their public key to a `PoolBox` (in register `R4`) and deposits tokens.
+2. **Withdrawal**: The SDK computes the **key image** (nullifier) from the depositor's secret (`M = secret × H`), generates an **AvlTree insert proof** for the nullifier set (`R5`), and constructs a ring signature (`proveDlog` + `proveDHTuple` + `atLeast`) proving membership without revealing identity.
+3. **Double-spend prevention**: The key image is inserted into an authenticated AVL+ tree (`R5`). The contract verifies the proof and rejects duplicate key images.
 
-The SDK abstracts this complexity via the `privacy.py` module, which exposes `build_pool_deposit_tx` and `build_pool_withdraw_tx`.
+The unified **PrivacyPoolV6** contract handles deposits, withdrawals, and renewal paths via lazy `if/else` branching on the token differential. The SDK abstracts all cryptographic complexity via `compute_key_image()`, `generate_avl_insert_proof()`, and `serialize_context_extension()`.
 
 ### How the SDK Handles This
 
@@ -144,3 +149,5 @@ Every state-changing action passes through `SafetyConfig` before execution. The 
 | `rate_limit_per_hour` | 60 | Prevent runaway loops |
 | `allowed_contracts` | `[]` (any) | Whitelist protocols the agent can interact with |
 | `dry_run` | `False` | Log but don't execute (for testing) |
+| `min_withdrawal_delay_blocks` | 100 | Recommended blocks between deposit and withdrawal |
+| `min_pool_ring_size` | 4 | Minimum ring size for withdrawal safety |

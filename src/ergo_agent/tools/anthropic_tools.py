@@ -108,39 +108,51 @@ def build_anthropic_tools(toolkit: ErgoToolkit) -> list[dict[str, Any]]:
             },
         },
         {
-            "name": "get_privacy_pools",
-            "description": "Scan the blockchain for active privacy pool privacy pools.",
+            "name": "privacy_pool_get_status",
+            "description": "Get the current status of a privacy MasterPoolBox (deposit count, privacy score, anonymity assessment).",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "denomination": {"type": "integer", "description": "The token denomination (e.g., 100, 1000)"},
+                    "pool_box_id": {"type": "string", "description": "The box ID of the MasterPoolBox."},
                 },
-                "required": ["denomination"],
+                "required": ["pool_box_id"],
             },
         },
         {
-            "name": "deposit_to_privacy_pool",
-            "description": "Deposit a privacy pool note denomination into a privacy pool to enter the ring.",
+            "name": "privacy_pool_deposit",
+            "description": "Create a privacy pool deposit intent. Returns blinding_factor (secret) — MUST be saved for withdrawal.",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "pool_id": {"type": "string", "description": "The UTXO ID of the pool"},
-                    "denomination": {"type": "integer", "description": "The note denomination jumping into the pool."},
+                    "tier": {"type": "string", "description": "Pool tier: '1_erg', '10_erg', or '100_erg'.", "enum": ["1_erg", "10_erg", "100_erg"]},
                 },
-                "required": ["pool_id", "denomination"],
+                "required": ["tier"],
             },
         },
         {
-            "name": "withdraw_from_privacy_pool",
-            "description": "Withdraw a privacy pool note from a privacy pool using an autonomous ring signature!",
+            "name": "privacy_pool_withdraw",
+            "description": "Create a privacy pool withdrawal intent using DHTuple ring signatures.",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "pool_id": {"type": "string", "description": "The privacy pool to withdraw from."},
-                    "recipient_address": {"type": "string", "description": "Destination EIP-41 stealth address."},
-                    "key_image": {"type": "string", "description": "Hex string key image preventing double withdrawal."},
+                    "blinding_factor_hex": {"type": "string", "description": "Hex blinding factor from deposit."},
+                    "tier": {"type": "string", "description": "Pool tier.", "enum": ["1_erg", "10_erg", "100_erg"]},
+                    "recipient_address": {"type": "string", "description": "Destination Ergo address."},
+                    "decoy_commitments": {"type": "array", "items": {"type": "string"}, "description": "Decoy commitment hexes from the pool."},
                 },
-                "required": ["pool_id", "recipient_address", "key_image"],
+                "required": ["blinding_factor_hex", "tier", "recipient_address", "decoy_commitments"],
+            },
+        },
+        {
+            "name": "privacy_pool_export_view_key",
+            "description": "Export a privacy View Key for compliance/audit disclosure.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "blinding_factor_hex": {"type": "string", "description": "Hex blinding factor from deposit."},
+                    "tier": {"type": "string", "description": "Pool tier.", "enum": ["1_erg", "10_erg", "100_erg"]},
+                },
+                "required": ["blinding_factor_hex", "tier"],
             },
         },
     ]
