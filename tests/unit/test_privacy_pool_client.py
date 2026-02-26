@@ -3,9 +3,12 @@ Unit tests for PrivacyPoolClient transaction builder logic.
 All node/wallet calls are mocked — no network required.
 """
 
+import importlib.util
 from unittest.mock import MagicMock
 
 import pytest
+
+_has_avltree = importlib.util.find_spec("ergo_avltree") is not None
 
 from ergo_agent.core.models import Box, Token
 from ergo_agent.defi.privacy_pool import PrivacyPoolClient
@@ -131,6 +134,7 @@ def test_deposit_pool_not_found():
 
 # --- Withdrawal Transaction Tests ---
 
+@pytest.mark.skipif(not _has_avltree, reason="ergo_avltree Rust extension not available")
 def test_withdrawal_uses_box_not_string(monkeypatch):
     """build_withdrawal_tx must pass Box object to with_input(), not a string."""
     import ergo_agent.core.address as addr_mod
@@ -148,6 +152,7 @@ def test_withdrawal_uses_box_not_string(monkeypatch):
     assert builder._explicit_inputs[0]["box"] is not None
 
 
+@pytest.mark.skipif(not _has_avltree, reason="ergo_avltree Rust extension not available")
 def test_withdrawal_appends_nullifier(monkeypatch):
     """R5 in the output must be an AvlTree digest (starts with 0x64)."""
     import ergo_agent.core.address as addr_mod
@@ -168,6 +173,7 @@ def test_withdrawal_appends_nullifier(monkeypatch):
     assert len(new_r5) > 10  # Should contain a valid digest
 
 
+@pytest.mark.skipif(not _has_avltree, reason="ergo_avltree Rust extension not available")
 def test_withdrawal_dynamic_denomination(monkeypatch):
     """Withdrawal should use denomination from R6, not hardcoded 100."""
     import ergo_agent.core.address as addr_mod
@@ -191,6 +197,7 @@ def test_withdrawal_dynamic_denomination(monkeypatch):
     assert note_out["tokens"][0]["amount"] == denom
 
 
+@pytest.mark.skipif(not _has_avltree, reason="ergo_avltree Rust extension not available")
 def test_withdrawal_note_amount_floor(monkeypatch):
     """For denom=1, note_amount must be at least 1."""
     import ergo_agent.core.address as addr_mod

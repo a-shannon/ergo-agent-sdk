@@ -10,9 +10,12 @@ Tests cover:
 - Empty pool withdrawal guard
 """
 
+import importlib.util
 from unittest.mock import MagicMock
 
 import pytest
+
+_has_avltree = importlib.util.find_spec("ergo_avltree") is not None
 
 from ergo_agent.core.models import Box, Token
 from ergo_agent.core.privacy import compute_key_image, generate_fresh_secret
@@ -102,6 +105,9 @@ class TestKeyImageEdgeCases:
 class TestWithdrawalEdgeCases:
     """Test build_withdrawal_tx with edge case inputs."""
 
+    @pytest.mark.skipif(
+        not _has_avltree, reason="ergo_avltree Rust extension not available"
+    )
     def test_withdrawal_exact_denomination(self, monkeypatch):
         """V6: Note output must be exact denomination, never 99%."""
         import ergo_agent.core.address as addr_mod
@@ -127,6 +133,9 @@ class TestWithdrawalEdgeCases:
         with pytest.raises(ValueError, match="not found"):
             client.build_withdrawal_tx("nonexistent", "3WxRecipient", "aa" * 32)
 
+    @pytest.mark.skipif(
+        not _has_avltree, reason="ergo_avltree Rust extension not available"
+    )
     def test_withdrawal_pool_tokens_decrease_by_denom(self, monkeypatch):
         """Pool output tokens must decrease by exactly one denomination."""
         import ergo_agent.core.address as addr_mod
@@ -143,6 +152,9 @@ class TestWithdrawalEdgeCases:
         denom = client._decode_r6_denomination("05d00f")
         assert pool_out["tokens"][0]["amount"] == 3000 - denom
 
+    @pytest.mark.skipif(
+        not _has_avltree, reason="ergo_avltree Rust extension not available"
+    )
     def test_withdrawal_r5_is_avltree_format(self, monkeypatch):
         """After withdrawal, new R5 must be AvlTree format (starts with 0x64)."""
         import ergo_agent.core.address as addr_mod
@@ -199,6 +211,9 @@ class TestDepositEdgeCases:
 class TestConcurrentBuilds:
     """Test that concurrent builds against the same pool UTXO both succeed."""
 
+    @pytest.mark.skipif(
+        not _has_avltree, reason="ergo_avltree Rust extension not available"
+    )
     def test_two_withdrawals_same_utxo_both_build(self, monkeypatch):
         """Two withdrawal builders against the same pool box should both
         produce valid unsigned TXs. Contention happens at submit only."""
@@ -218,6 +233,9 @@ class TestConcurrentBuilds:
         assert len(builder1._outputs) == 2
         assert len(builder2._outputs) == 2
 
+    @pytest.mark.skipif(
+        not _has_avltree, reason="ergo_avltree Rust extension not available"
+    )
     def test_deposit_and_withdrawal_same_utxo(self, monkeypatch):
         """A deposit and withdrawal against the same UTXO both build OK."""
         import ergo_agent.core.address as addr_mod
