@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from ergo_lib_python.chain import Constant
+try:
+    from ergo_lib_python.chain import Constant
+except ImportError:
+    Constant = None  # type: ignore[assignment,misc]
 
 from ergo_agent.core.address import address_to_ergo_tree, validate_address
 from ergo_agent.core.models import NANOERG_PER_ERG, Box

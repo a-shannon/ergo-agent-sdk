@@ -14,7 +14,10 @@ Network types:
 Reference: https://docs.ergoplatform.com/dev/wallet/address/
 """
 
-import ergo_lib_python.chain as ergo_chain
+try:
+    import ergo_lib_python.chain as ergo_chain
+except ImportError:
+    ergo_chain = None  # type: ignore[assignment]
 
 
 class AddressError(Exception):

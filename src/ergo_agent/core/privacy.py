@@ -8,7 +8,7 @@ This module provides:
 
 Architecture:
     PoolBox {
-        tokens: [(cashTokenId, totalReserve)]
+        tokens: [(poolTokenId, totalReserve)]
         R4: Coll[GroupElement] — deposit keys
         R5: AvlTree — nullifier set (used key images)
         R6: Long — denomination

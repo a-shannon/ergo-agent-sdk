@@ -1,6 +1,9 @@
 from typing import Any
 
-from ergo_lib_python.chain import Constant
+try:
+    from ergo_lib_python.chain import Constant
+except ImportError:
+    Constant = None  # type: ignore[assignment,misc]
 
 from ergo_agent.core.builder import TransactionBuilder
 from ergo_agent.core.node import ErgoNode

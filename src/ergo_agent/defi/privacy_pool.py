@@ -51,11 +51,11 @@ class PrivacyPoolClient:
         try:
             with open(compiled_path) as f:
                 contracts = json.load(f)
-                self.MOCK_CASH_V3_POOL_ERGO_TREE = contracts["pool"]["tree"]
+                self.MOCK_POOL_ERGO_TREE = contracts["pool"]["tree"]
                 self.pool_address = contracts["pool"]["address"]
         except Exception as e:
             logger.warning(f"Falling back to empty pool config: {e}")
-            self.MOCK_CASH_V3_POOL_ERGO_TREE = ""
+            self.MOCK_POOL_ERGO_TREE = ""
             self.pool_address = ""
 
     # ------------------------------------------------------------------

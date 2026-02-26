@@ -57,7 +57,7 @@ def make_client():
     client = PrivacyPoolClient.__new__(PrivacyPoolClient)
     client.node = node
     client.wallet = wallet
-    client.MOCK_CASH_V3_POOL_ERGO_TREE = "0008cd02deadbeef"
+    client.MOCK_POOL_ERGO_TREE = "0008cd02deadbeef"
     client.pool_address = "3WxPoolAddress"
     return client, node
 

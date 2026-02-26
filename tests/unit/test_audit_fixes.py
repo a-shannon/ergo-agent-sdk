@@ -17,7 +17,7 @@ class TestSelectBestPool:
         client = PrivacyPoolClient.__new__(PrivacyPoolClient)
         client.node = MagicMock()
         client.wallet = MagicMock()
-        client.MOCK_CASH_V3_POOL_ERGO_TREE = "0008cd02deadbeef"
+        client.MOCK_POOL_ERGO_TREE = "0008cd02deadbeef"
         client.pool_address = "3WxPoolAddress"
         return client
 
@@ -132,7 +132,7 @@ class TestR7Decoder:
         client = PrivacyPoolClient.__new__(PrivacyPoolClient)
         client.node = MagicMock()
         client.wallet = MagicMock()
-        client.MOCK_CASH_V3_POOL_ERGO_TREE = ""
+        client.MOCK_POOL_ERGO_TREE = ""
         client.pool_address = ""
         return client
 

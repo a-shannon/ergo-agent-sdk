@@ -47,13 +47,13 @@ def wallet(node):
 
 
 @pytest.fixture(scope="module")
-def cash_client(node, wallet):
+def pool_client(node, wallet):
     return PrivacyPoolClient(node=node, wallet=wallet)
 
 
-def get_pool(cash_client):
+def get_pool(pool_client):
     """Helper to get first available pool."""
-    pools = cash_client.get_active_pools(denomination=100)
+    pools = pool_client.get_active_pools(denomination=100)
     if not pools:
         pytest.skip("No active pools on testnet")
     return pools[0]
@@ -68,12 +68,12 @@ class TestRingPoisoningDefense:
     Verify that the hardened SDK detects and warns about ring poisoning indicators.
     """
 
-    def test_duplicate_key_blocked_at_sdk(self, cash_client):
+    def test_duplicate_key_blocked_at_sdk(self, pool_client):
         """
         [FIX 2.3] The hardened SDK must reject deposits with keys already in R4.
         """
-        pool = get_pool(cash_client)
-        pool_box = cash_client.node.get_box_by_id(pool["pool_id"])
+        pool = get_pool(pool_client)
+        pool_box = pool_client.node.get_box_by_id(pool["pool_id"])
 
         # Extract an existing key from R4 that is NOT a banned key
         r4 = pool_box.additional_registers.get("R4", "")
@@ -100,19 +100,19 @@ class TestRingPoisoningDefense:
                 pytest.skip("All keys in R4 are banned constants (pre-hardening deposits)")
 
             with pytest.raises(PoolValidationError, match="already exists"):
-                cash_client.build_deposit_tx(pool["pool_id"], existing_key, 100)
+                pool_client.build_deposit_tx(pool["pool_id"], existing_key, 100)
 
             print(f"\n[FIX 2.3 VERIFIED] Duplicate key {existing_key[:16]}... correctly blocked")
         else:
             pytest.skip("R4 too short to extract keys")
 
-    def test_pool_health_reports_effective_anonymity(self, cash_client):
+    def test_pool_health_reports_effective_anonymity(self, pool_client):
         """
         [FIX 1.1] evaluate_pool_health() must report effective_anonymity
         separately from ring_size to detect ring poisoning.
         """
-        pool = get_pool(cash_client)
-        health = cash_client.evaluate_pool_health(pool["pool_id"])
+        pool = get_pool(pool_client)
+        health = pool_client.evaluate_pool_health(pool["pool_id"])
 
         assert "effective_anonymity" in health
         assert "duplicate_keys" in health
@@ -133,12 +133,12 @@ class TestPoolCapacityDefense:
     Verify that the SDK pre-checks pool capacity before building deposits.
     """
 
-    def test_enhanced_pool_metadata(self, cash_client):
+    def test_enhanced_pool_metadata(self, pool_client):
         """
         [FIX 1.2, 5.2] Pool scan should now include token_balance,
         withdrawable, slots_remaining, and is_full fields.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
 
         assert "token_balance" in pool
         assert "withdrawable" in pool
@@ -163,7 +163,7 @@ class TestKeyImageDefenses:
     Verify that the hardened SDK blocks all dangerous key image values.
     """
 
-    def test_group_generator_blocked_as_key_image(self, cash_client):
+    def test_group_generator_blocked_as_key_image(self, pool_client):
         """
         [FIX 2.1] groupGenerator must be REJECTED as key image.
         Since build_withdrawal_tx now accepts secret_hex and computes key_image
@@ -172,29 +172,29 @@ class TestKeyImageDefenses:
         from ergo_agent.defi.privacy_pool import PoolValidationError
 
         with pytest.raises(PoolValidationError, match="group generator"):
-            cash_client._validate_compressed_point(GROUP_GENERATOR, label="key image")
+            pool_client._validate_compressed_point(GROUP_GENERATOR, label="key image")
 
         print("\n[FIX 2.1 VERIFIED] groupGenerator correctly blocked as key image")
 
-    def test_h_constant_blocked_as_key_image(self, cash_client):
+    def test_h_constant_blocked_as_key_image(self, pool_client):
         """
         [FIX 2.1b] H constant must be REJECTED as key image.
         """
         from ergo_agent.defi.privacy_pool import PoolValidationError
 
         with pytest.raises(PoolValidationError, match="H constant"):
-            cash_client._validate_compressed_point(H_CONSTANT, label="key image")
+            pool_client._validate_compressed_point(H_CONSTANT, label="key image")
 
         print("\n[FIX 2.1b VERIFIED] H constant correctly blocked as key image")
 
-    def test_group_generator_blocked_as_deposit_key(self, cash_client):
+    def test_group_generator_blocked_as_deposit_key(self, pool_client):
         """
         [FIX 2.2] groupGenerator must be REJECTED as a stealth deposit key.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
 
         with pytest.raises(PoolValidationError, match="group generator"):
-            cash_client.build_deposit_tx(
+            pool_client.build_deposit_tx(
                 pool["pool_id"],
                 GROUP_GENERATOR,
                 100,
@@ -202,14 +202,14 @@ class TestKeyImageDefenses:
 
         print("\n[FIX 2.2 VERIFIED] groupGenerator correctly blocked as deposit key")
 
-    def test_h_constant_blocked_as_deposit_key(self, cash_client):
+    def test_h_constant_blocked_as_deposit_key(self, pool_client):
         """
         [FIX 2.2b] H constant must be REJECTED as a stealth deposit key.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
 
         with pytest.raises(PoolValidationError, match="H constant"):
-            cash_client.build_deposit_tx(
+            pool_client.build_deposit_tx(
                 pool["pool_id"],
                 H_CONSTANT,
                 100,
@@ -217,23 +217,23 @@ class TestKeyImageDefenses:
 
         print("\n[FIX 2.2b VERIFIED] H constant correctly blocked as deposit key")
 
-    def test_invalid_format_blocked(self, cash_client):
+    def test_invalid_format_blocked(self, pool_client):
         """
         [FIX 2.2] Invalid key formats must be rejected.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
 
         # Wrong prefix (04 = uncompressed)
         with pytest.raises(PoolValidationError, match="must start with 02 or 03"):
-            cash_client.build_deposit_tx(pool["pool_id"], "04" + "ab" * 32, 100)
+            pool_client.build_deposit_tx(pool["pool_id"], "04" + "ab" * 32, 100)
 
         # Too short
         with pytest.raises(PoolValidationError, match="66 hex chars"):
-            cash_client.build_deposit_tx(pool["pool_id"], "02abcd", 100)
+            pool_client.build_deposit_tx(pool["pool_id"], "02abcd", 100)
 
         # Not hex
         with pytest.raises(PoolValidationError, match="not valid hex"):
-            cash_client.build_deposit_tx(pool["pool_id"], "02" + "zz" * 32, 100)
+            pool_client.build_deposit_tx(pool["pool_id"], "02" + "zz" * 32, 100)
 
         print("\n[FIX 2.2c VERIFIED] Invalid key formats correctly rejected")
 
@@ -249,40 +249,40 @@ class TestPrivacyLeakage:
     document what mitigations the SDK provides.
     """
 
-    def test_deposit_reveals_funding_source(self, cash_client, wallet):
+    def test_deposit_reveals_funding_source(self, pool_client, wallet):
         """
         [FINDING 3.2] Deposit tx reveals wallet address as funding source.
         The SDK cannot prevent this -- it requires protocol-level changes
         (relayer-funded deposits).
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
         # Use a safe, non-banned key
         safe_key = "02" + "d1" * 32
-        cash_client.build_deposit_tx(pool["pool_id"], safe_key, 100)
+        pool_client.build_deposit_tx(pool["pool_id"], safe_key, 100)
 
         print(f"\n[FINDING 3.2] Deposit funded from: {wallet.address}")
         print("  -> Mitigation: Use fresh wallet per deposit or relay-funded deposits")
 
-    def test_note_amount_deterministic(self, cash_client):
+    def test_note_amount_deterministic(self, pool_client):
         """
         [FINDING 3.5] Note amount always equals the pool's exact denomination (v6: no fee deduction).
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
         # Use a secret key instead of raw key image
         safe_secret = "d2" * 32
-        builder = cash_client.build_withdrawal_tx(
-            pool["pool_id"], cash_client.wallet.address, safe_secret,
+        builder = pool_client.build_withdrawal_tx(
+            pool["pool_id"], pool_client.wallet.address, safe_secret,
         )
 
         # Get actual denomination from the pool box R6 (not the filter param)
-        pool_box = cash_client.node.get_box_by_id(pool["pool_id"])
+        pool_box = pool_client.node.get_box_by_id(pool["pool_id"])
         r6 = pool_box.additional_registers.get("R6", "05c801")
         if isinstance(r6, dict):
             r6 = r6.get("serializedValue", "05c801")
-        actual_denom = cash_client._decode_r6_denomination(r6)
+        actual_denom = pool_client._decode_r6_denomination(r6)
 
         note_amount = builder._outputs[1]["tokens"][0]["amount"]
         # V6: note amount == exact denomination from R6 (no 99% fee)
@@ -290,13 +290,13 @@ class TestPrivacyLeakage:
 
         print(f"\n[FINDING 3.5] Note amount always {note_amount} tokens (deterministic)")
 
-    def test_pool_balance_leaks_activity(self, cash_client, node):
+    def test_pool_balance_leaks_activity(self, pool_client, node):
         """
         [FINDING 3.1b] Token balance reveals deposit vs withdrawal ratio.
         evaluate_pool_health() now exposes this clearly.
         """
-        pool = get_pool(cash_client)
-        health = cash_client.evaluate_pool_health(pool["pool_id"])
+        pool = get_pool(pool_client)
+        health = pool_client.evaluate_pool_health(pool["pool_id"])
 
         print("\n[FINDING 3.1b] Pool activity analysis via evaluate_pool_health():")
         print(f"  Ring size: {health['ring_size']}")
@@ -315,18 +315,18 @@ class TestConcurrency:
     Tests for UTXO contention and stale reference handling.
     """
 
-    def test_competing_deposits_both_build(self, cash_client):
+    def test_competing_deposits_both_build(self, pool_client):
         """
         [FINDING 4.1] Two deposits against the same pool UTXO both build OK.
         Only one can succeed on-chain. The SDK should guide users to retry.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
 
         key1 = "02" + "c1" * 32
         key2 = "03" + "c2" * 32
 
-        builder1 = cash_client.build_deposit_tx(pool["pool_id"], key1, 100)
-        builder2 = cash_client.build_deposit_tx(pool["pool_id"], key2, 100)
+        builder1 = pool_client.build_deposit_tx(pool["pool_id"], key1, 100)
+        builder2 = pool_client.build_deposit_tx(pool["pool_id"], key2, 100)
 
         assert len(builder1._outputs) >= 1
         assert len(builder2._outputs) >= 1
@@ -335,21 +335,21 @@ class TestConcurrency:
         print("  -> Both build OK, conflict happens at submission only")
         print("  -> RECOMMENDATION: SDK should auto-retry with fresh UTXO on failure")
 
-    def test_competing_deposit_and_withdrawal(self, cash_client):
+    def test_competing_deposit_and_withdrawal(self, pool_client):
         """
         [FINDING 4.1b] A deposit and withdrawal against the same pool
         UTXO cannot both succeed.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
         dep_key = "02" + "c3" * 32
         wit_secret = "c4" * 32  # V6: pass secret instead of key image
 
-        builder_dep = cash_client.build_deposit_tx(pool["pool_id"], dep_key, 100)
-        builder_wit = cash_client.build_withdrawal_tx(
-            pool["pool_id"], cash_client.wallet.address, wit_secret,
+        builder_dep = pool_client.build_deposit_tx(pool["pool_id"], dep_key, 100)
+        builder_wit = pool_client.build_withdrawal_tx(
+            pool["pool_id"], pool_client.wallet.address, wit_secret,
         )
 
         assert len(builder_dep._outputs) >= 1
