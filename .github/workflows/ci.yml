@@ -31,18 +31,8 @@ jobs:
       - name: Lint with ruff
         run: ruff check src/ tests/
 
-      - name: Diagnostic imports
-        run: |
-          python -c "import ergo_agent; print('ergo_agent OK')"
-          python -c "from ergo_agent.crypto.pedersen import PedersenCommitment; print('pedersen OK')"
-          python -c "from ergo_agent.core.privacy import compute_key_image; print('privacy OK')"
-          python -c "from ergo_agent.defi.privacy_pool import PrivacyPoolClient; print('privacy_pool OK')"
-          python -c "from ergo_agent.defi.privacy_client import PrivacyPoolClient as PC; print('privacy_client OK')"
-          python -c "from ergo_agent.tools.toolkit import ErgoToolkit; print('toolkit OK')"
-          pip list | grep -iE "ecdsa|ergo|fastapi|pydantic|httpx"
-
       - name: Run unit tests (no network)
-        run: pytest tests/unit/ -v --tb=long
+        run: pytest tests/unit/ -v --tb=short
 
       - name: Check for blocked project names
         run: |
