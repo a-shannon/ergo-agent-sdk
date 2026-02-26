@@ -33,20 +33,15 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 from ergo_agent.crypto.pedersen import (
-    G_COMPRESSED,
-    NUMS_H,
+    _GENERATOR,
     SECP256K1_N,
     PedersenCommitment,
     decode_point,
     encode_point,
-    _GENERATOR,
-    _H_POINT,
 )
-
 
 # ==============================================================================
 # Constants
@@ -258,13 +253,13 @@ def prove_balance(
     # Create input commitments
     input_cs = [
         PedersenCommitment.commit(r, v)
-        for r, v in zip(input_blindings, input_amounts)
+        for r, v in zip(input_blindings, input_amounts, strict=False)
     ]
 
     # Create output commitments
     output_cs = [
         PedersenCommitment.commit(r, v)
-        for r, v in zip(output_blindings, output_amounts)
+        for r, v in zip(output_blindings, output_amounts, strict=False)
     ]
 
     # Compute residual: D = Σ C_in - Σ C_out

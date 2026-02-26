@@ -19,15 +19,11 @@ Architecture:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from ergo_agent.crypto.pedersen import (
-    NUMS_H,
-    SECP256K1_N,
-    PedersenCommitment,
     decode_point,
-    encode_point,
 )
 
 # Maximum number of IntentToDeposit boxes per batch sweep
@@ -132,7 +128,7 @@ class DepositRelayer:
 
         # Commitment must be a valid compressed point
         try:
-            pt = decode_point(intent.commitment_hex)
+            decode_point(intent.commitment_hex)
         except (ValueError, Exception):
             return False
 

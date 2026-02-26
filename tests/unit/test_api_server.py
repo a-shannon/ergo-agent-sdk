@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ergo_agent.api.server import app
-from ergo_agent.api.models import DepositRequest, WithdrawRequest
 
 
 @pytest.fixture
@@ -28,7 +27,7 @@ def test_deposit_missing_pool(client):
 
 def test_withdraw_missing_secret(client):
     response = client.post(
-        "/pool/withdraw", 
+        "/pool/withdraw",
         json={"recipient_address": "9ew...", "pool_box_id": "abc"}
     )
     assert response.status_code == 422
@@ -36,9 +35,9 @@ def test_withdraw_missing_secret(client):
 
 def test_withdraw_missing_pool(client):
     response = client.post(
-        "/pool/withdraw", 
+        "/pool/withdraw",
         json={
-            "recipient_address": "9ew...", 
+            "recipient_address": "9ew...",
             "secret_key": "01"*32
         }
     )

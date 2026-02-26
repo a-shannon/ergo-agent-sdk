@@ -6,20 +6,20 @@ import secrets
 
 import pytest
 
+from ergo_agent.crypto.multi_asset import (
+    ERG_ASSET_ID,
+    MultiAssetCommitment,
+    derive_asset_generator,
+    prove_multi_asset_balance,
+)
 from ergo_agent.crypto.pedersen import (
+    _GENERATOR,
     G_COMPRESSED,
     NUMS_H,
     SECP256K1_N,
     SECP256K1_P,
     decode_point,
     encode_point,
-    _GENERATOR,
-)
-from ergo_agent.crypto.multi_asset import (
-    ERG_ASSET_ID,
-    MultiAssetCommitment,
-    derive_asset_generator,
-    prove_multi_asset_balance,
 )
 
 

@@ -22,20 +22,15 @@ import pytest
 
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
-from ergo_agent.core.privacy import (
-    analyze_anonymity_set,
-    check_withdrawal_safety,
-)
-from ergo_agent.defi.privacy_client import PrivacyPoolClient, DepositSecret
-from ergo_agent.crypto.pedersen import (
-    PedersenCommitment,
-    SECP256K1_N,
-)
 from ergo_agent.crypto.dhtuple import (
     compute_nullifier,
     generate_secondary_generator,
-    verify_nullifier,
 )
+from ergo_agent.crypto.pedersen import (
+    SECP256K1_N,
+    PedersenCommitment,
+)
+from ergo_agent.defi.privacy_client import DepositSecret, PrivacyPoolClient
 
 pytestmark = pytest.mark.integration
 
@@ -85,7 +80,7 @@ class TestDoubleSpend:
         I2 = compute_nullifier(secret.blinding_factor, U)
 
         assert I1 == I2, "Same (r, U) must produce identical nullifier"
-        print(f"\n[+] Same-key nullifier determinism: PASSED")
+        print("\n[+] Same-key nullifier determinism: PASSED")
 
     def test_different_U_produces_different_nullifier(self, privacy_client):
         """
@@ -101,7 +96,7 @@ class TestDoubleSpend:
         I2 = compute_nullifier(secret.blinding_factor, U2)
 
         assert I1 != I2, "Different U must produce different nullifiers"
-        print(f"\n[+] Different-U nullifier divergence: PASSED")
+        print("\n[+] Different-U nullifier divergence: PASSED")
 
 
 # --- Commitment Integrity ---
@@ -120,7 +115,7 @@ class TestCommitmentIntegrity:
         assert s1.commitment_hex != s2.commitment_hex, (
             "Different blinding factors must produce different commitments"
         )
-        print(f"\n[+] Commitment binding: C1≠C2 for different r values")
+        print("\n[+] Commitment binding: C1≠C2 for different r values")
 
     def test_view_key_wrong_amount_rejected(self, privacy_client):
         """
@@ -135,7 +130,7 @@ class TestCommitmentIntegrity:
             secret.commitment_hex, secret.blinding_factor, real_amount + 1_000_000_000
         )
         assert is_valid is False
-        print(f"\n[+] Wrong-amount view key: correctly rejected")
+        print("\n[+] Wrong-amount view key: correctly rejected")
 
     def test_view_key_wrong_blinding_rejected(self, privacy_client):
         """
@@ -148,7 +143,7 @@ class TestCommitmentIntegrity:
             secret.commitment_hex, wrong_r, secret.amount
         )
         assert is_valid is False
-        print(f"\n[+] Wrong-r view key: correctly rejected")
+        print("\n[+] Wrong-r view key: correctly rejected")
 
 
 # --- Withdrawal Proof Forgery ---
@@ -169,7 +164,7 @@ class TestProofForgery:
 
         # Forge a different blinding factor
         forged_r = secrets.randbelow(SECP256K1_N - 1) + 1
-        forged_C = PedersenCommitment.commit(forged_r, real_secret.amount)
+        PedersenCommitment.commit(forged_r, real_secret.amount)
 
         forged_secret = DepositSecret(
             blinding_factor=forged_r,
@@ -184,10 +179,10 @@ class TestProofForgery:
         # 1. Fail with ValueError (integrity check), or
         # 2. Produce a proof that the contract would reject
         try:
-            proof = privacy_client.build_withdrawal_proof(forged_secret, decoys, payout)
+            privacy_client.build_withdrawal_proof(forged_secret, decoys, payout)
             # If it builds, the contract would still reject it because
             # the DHTuple equation C_i = r_i·G + amount·H wouldn't hold
-            print(f"\n[+] Forged proof built (would be rejected on-chain)")
+            print("\n[+] Forged proof built (would be rejected on-chain)")
         except (ValueError, Exception) as e:
             print(f"\n[+] Forged proof rejected at build time: {type(e).__name__}")
 
@@ -205,7 +200,7 @@ class TestBearerNoteTampering:
 
         with pytest.raises(ValueError, match="integrity check failed"):
             PrivacyPoolClient.import_bearer_note(note)
-        print(f"\n[+] Tampered commitment: correctly rejected")
+        print("\n[+] Tampered commitment: correctly rejected")
 
     def test_tampered_blinding_factor_rejected(self, privacy_client):
         """Altering blinding factor in bearer note must fail import."""
@@ -215,14 +210,14 @@ class TestBearerNoteTampering:
 
         with pytest.raises(ValueError, match="integrity check failed"):
             PrivacyPoolClient.import_bearer_note(note)
-        print(f"\n[+] Tampered blinding factor: correctly rejected")
+        print("\n[+] Tampered blinding factor: correctly rejected")
 
     def test_invalid_note_type_rejected(self, privacy_client):
         """Wrong note type should be rejected."""
         note = {"type": "fake_note", "version": 1}
         with pytest.raises(ValueError, match="Invalid bearer note"):
             PrivacyPoolClient.import_bearer_note(note)
-        print(f"\n[+] Invalid note type: correctly rejected")
+        print("\n[+] Invalid note type: correctly rejected")
 
 
 # --- Anonymity Analysis Adversarial ---
@@ -248,7 +243,7 @@ class TestAnonymityAdversarial:
         )
         assert assessment.privacy_score < 41
         assert not assessment.is_safe_to_withdraw
-        print(f"\n[+] Empty pool: CRITICAL, is_safe=False")
+        print("\n[+] Empty pool: CRITICAL, is_safe=False")
 
     def test_sybil_dominated_pool_scores_poorly(self):
         """
@@ -311,4 +306,4 @@ class TestTierValidation:
             secret = privacy_client.create_deposit(tier)
             assert secret.tier == tier
             assert secret.amount > 0
-        print(f"\n[+] All 3 tiers accepted: 1/10/100 ERG")
+        print("\n[+] All 3 tiers accepted: 1/10/100 ERG")

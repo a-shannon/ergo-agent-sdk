@@ -423,8 +423,8 @@ class ErgoToolkit:
             dict with nullifier, ring_size, and intent details.
         """
         self._safety.validate_rate_limit()
-        from ergo_agent.defi.privacy_client import DepositSecret
         from ergo_agent.crypto.pedersen import PedersenCommitment
+        from ergo_agent.defi.privacy_client import DepositSecret
         from ergo_agent.relayer.pool_deployer import POOL_TIERS
 
         r = int(blinding_factor_hex, 16)
@@ -461,8 +461,8 @@ class ErgoToolkit:
         Returns:
             dict with view key data for an auditor.
         """
-        from ergo_agent.defi.privacy_client import DepositSecret
         from ergo_agent.crypto.pedersen import PedersenCommitment
+        from ergo_agent.defi.privacy_client import DepositSecret
         from ergo_agent.relayer.pool_deployer import POOL_TIERS
 
         r = int(blinding_factor_hex, 16)

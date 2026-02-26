@@ -11,23 +11,15 @@ Provides tools for:
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
 from typing import Any
 
 from ergo_agent.crypto.pedersen import (
-    NUMS_H,
-    SECP256K1_P,
     encode_point,
-    hash_to_curve,
 )
 from ergo_agent.relayer.deposit_relayer import (
-    DepositRelayer,
-    PoolState,
-    IntentToDeposit,
-    MINER_FEE,
     MIN_BOX_VALUE,
+    DepositRelayer,
 )
-
 
 # ==============================================================================
 # Constants
@@ -134,9 +126,9 @@ def build_chaff_commitment(seed_hex: str) -> str:
         66-char compressed hex of the chaff commitment point.
     """
     from ergo_agent.crypto.pedersen import (
+        G_COMPRESSED,
         SECP256K1_N,
         decode_point,
-        G_COMPRESSED,
     )
 
     # Derive r = Blake2b256(seed) mod N  — Ergo's canonical hash

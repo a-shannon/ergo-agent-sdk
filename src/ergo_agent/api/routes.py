@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Request, HTTPException
-from typing import List
+
+from fastapi import APIRouter, HTTPException, Request
 
 from ergo_agent.api.models import (
     DepositRequest,
     DepositResponse,
+    PoolStatusResponse,
     WithdrawRequest,
     WithdrawResponse,
-    PoolStatusResponse,
 )
 from ergo_agent.core.privacy import generate_fresh_secret
 
@@ -21,7 +21,7 @@ def get_pool_client(request: Request):
     return client
 
 
-@router.get("/pools", response_model=List[PoolStatusResponse])
+@router.get("/pools", response_model=list[PoolStatusResponse])
 async def list_pools(request: Request, denomination: int | None = None):
     """
     List active privacy pools.
@@ -29,7 +29,7 @@ async def list_pools(request: Request, denomination: int | None = None):
     """
     client = get_pool_client(request)
     pools = client.get_active_pools(denomination)
-    
+
     results = []
     for p in pools:
         results.append(
@@ -48,16 +48,16 @@ async def list_pools(request: Request, denomination: int | None = None):
 async def deposit(request: Request, req: DepositRequest):
     """
     Deposit into a privacy pool.
-    
+
     Auto-generates a stealth key sequence if `stealth_key` is omitted.
     Returns the transaction ID, inserted stealth key, and optionally the secret key if auto-generated.
     ALWAYS STORE THE SECRET KEY SECURELY to withdraw later.
     """
     client = get_pool_client(request)
-    
+
     secret_key = None
     stealth_key = req.stealth_key
-    
+
     if not stealth_key:
         # Generate fresh keys locally
         secret_key, stealth_key = generate_fresh_secret()
@@ -68,21 +68,21 @@ async def deposit(request: Request, req: DepositRequest):
         user_stealth_key=stealth_key,
         denomination=req.denomination,
     )
-    
+
     unsigned_tx = builder.build()
-    
+
     # Sign and submit
     if not client.wallet:
         raise HTTPException(status_code=500, detail="Wallet not configured for signing.")
-        
+
     signed_tx = client.wallet.sign_transaction(unsigned_tx, client.node)
     tx_id = client.node.submit_transaction(signed_tx)
-    
+
     # Determine the new pool box ID from the unsigned_tx outputs
     # The pool box is always the first output in our builder sequence
     new_pool_box_id = "unknown"
     pool_tree = None
-    
+
     # Need to look up the pool box tree to find it in the output
     try:
         pool_box = client.node.get_box_by_id(req.pool_box_id)
@@ -107,7 +107,7 @@ async def deposit(request: Request, req: DepositRequest):
 async def withdraw(request: Request, req: WithdrawRequest):
     """
     Withdraw from a privacy pool using the 32-byte exact secret key.
-    
+
     If `pool_box_id` is omitted, the SDK will automatically scan active pools
     to find where this secret key belongs.
     """
@@ -122,7 +122,7 @@ async def withdraw(request: Request, req: WithdrawRequest):
         # But this is dangerous if multiple tokens. If omitted, we'll error out nicely for now
         # until a multi-pool auto-resolve feature is strictly requested.
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="pool_box_id is currently required for withdrawal. Please provide the current pool box ID."
         )
 
@@ -131,20 +131,20 @@ async def withdraw(request: Request, req: WithdrawRequest):
         recipient_stealth_address=req.recipient_address,
         secret_hex=req.secret_key,
     )
-    
+
     unsigned_tx = builder.build()
-    
+
     # Extract hints and signing secrets
     secrets = getattr(builder, "signing_secrets", None)
-    
+
     if not client.wallet:
         raise HTTPException(status_code=500, detail="Wallet not configured for API signing.")
 
     signed_tx = client.wallet.sign_transaction(unsigned_tx, client.node, secrets=secrets)
     tx_id = client.node.submit_transaction(signed_tx)
-    
+
     from ergo_agent.core.privacy import compute_key_image
-    
+
     new_pool_box_id = "unknown"
     try:
         pool_box = client.node.get_box_by_id(pool_id_to_use)
@@ -156,7 +156,7 @@ async def withdraw(request: Request, req: WithdrawRequest):
                     break
     except Exception:
         pass
-        
+
     return WithdrawResponse(
         tx_id=tx_id,
         key_image=compute_key_image(req.secret_key),

@@ -31,22 +31,18 @@ References:
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
 from ergo_agent.crypto.pedersen import (
+    _GENERATOR,
     G_COMPRESSED,
     NUMS_H,
     SECP256K1_N,
-    SECP256K1_P,
     decode_point,
     encode_point,
     hash_to_curve,
-    _GENERATOR,
-    _H_POINT,
 )
-
 
 # ==============================================================================
 # Constants
@@ -253,11 +249,11 @@ def prove_multi_asset_balance(
     # Create commitments
     input_cs = [
         MultiAssetCommitment.commit(r, amounts)
-        for r, amounts in zip(input_blindings, input_amounts)
+        for r, amounts in zip(input_blindings, input_amounts, strict=False)
     ]
     output_cs = [
         MultiAssetCommitment.commit(r, amounts)
-        for r, amounts in zip(output_blindings, output_amounts)
+        for r, amounts in zip(output_blindings, output_amounts, strict=False)
     ]
 
     # Compute residual

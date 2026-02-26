@@ -144,32 +144,32 @@ def decompose_into_tiers(amount: int) -> dict[int, int]:
     """
     Greedy decomposition algorithm for privacy pool "Auto-Route" mechanism.
     Breaks any amount into the optimal number of deposits across the 4 pool tiers.
-    
+
     Tiers (in tokens): 1,000,000 | 100,000 | 10,000 | 1,000
-    
+
     Args:
         amount: Total token amount to anonymize
-        
+
     Returns:
         dict mapping denomination to number of required tickets (keys)
         e.g., 15,300,000 -> {1000000: 15, 100000: 3, 10000: 0, 1000: 0}
-        
+
     Note: Any "loose change" remainder (< 1,000) cannot be deposited and is ignored here.
     """
     tiers = [1_000_000, 100_000, 10_000, 1_000]
     result = {t: 0 for t in tiers}
-    
+
     remaining = amount
     for tier in tiers:
         count = remaining // tier
         result[tier] = count
         remaining = remaining % tier
-        
+
     return result
 
 import secrets
+
 import ecdsa
-import hashlib
 
 # secp256k1 curve parameters
 _SECP256K1_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -367,7 +367,8 @@ def find_optimal_pool(
         # A rough estimate: if it's full, we skip.
         # Ergo API Coll[GroupElement] string hex format contains length headers.
         # This is a basic safeguard; true parsing requires sigmastate deserialization.
-        if len(keys_str) > (max_n * 66):  # 33 bytes (66 hex chars) per key approx
+        if len(keys_str) > (max_n * 66):
+            # 33 bytes (66 hex chars) per key approx
             continue
 
         valid_pools.append(box)
@@ -546,7 +547,7 @@ def build_auto_route_claim_tx(
     """
     # 1. Calculate decomposition to verify
     decomposition = decompose_into_tiers(claim_amount)
-    
+
     # Verify the user generated the correct number of keys for their claim size
     for denom, count in decomposition.items():
         if len(generated_keys.get(denom, [])) != count:
@@ -558,19 +559,19 @@ def build_auto_route_claim_tx(
         if t.token_id == token_id:
             current_tokens = t.amount
             break
-            
+
     remaining_tokens = current_tokens - claim_amount
-    
+
     # Extension variables for the AVL tree lookup/remove
     # Assuming the builder handles the exact bytes in a real env
     extension = {
         "0": "lookup_proof_bytes_placeholder",
         "1": "remove_proof_bytes_placeholder"
     }
-    
+
     builder.with_input(vending_machine_box, extension=extension)
     builder.with_input(user_wallet_box)
-    
+
     # Output 0: Vending Machine Change
     builder.add_output_raw(
         ergo_tree=vending_machine_box.ergo_tree,
@@ -578,18 +579,18 @@ def build_auto_route_claim_tx(
         tokens=[{"tokenId": token_id, "amount": remaining_tokens}],
         registers={"R4": "updated_avl_digest_placeholder"}
     )
-    
+
     # Outputs 1..N: The Pool Deposits
     for denom, keys in generated_keys.items():
         if not keys:
             continue
-            
+
         pool_tree = pool_trees[denom]
         deposit_tokens = denom * len(keys)
-        
+
         # We send the tokens to the pool contract. The pool contract itself
         # will act as the INPUT in the subsequent actual pool deposit transaction
-        # where these keys will be merged into the pool's state. 
+        # where these keys will be merged into the pool's state.
         # (This represents the routing destination step).
         builder.add_output_raw(
             ergo_tree=pool_tree,
@@ -605,7 +606,7 @@ def build_auto_route_claim_tx(
         value_nanoerg=required_payment,
         tokens=[]
     )
-    
+
     return builder.build()
 
 
@@ -623,8 +624,9 @@ def build_auto_route_claim_tx(
 #   61-80: GOOD     — Strong anonymity set
 #   81-100: EXCELLENT — Very high privacy
 
-from dataclasses import dataclass, field as dc_field
 import logging as _logging
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 
 _logger = _logging.getLogger(__name__)
 
@@ -788,39 +790,62 @@ def analyze_anonymity_set(
     score = 0
 
     # Deposit count (0-30 pts)
-    if deposit_count >= 100: score += 30
-    elif deposit_count >= 50: score += 25
-    elif deposit_count >= 20: score += 20
-    elif deposit_count >= 10: score += 15
-    elif deposit_count >= 5: score += 8
-    else: score += max(0, deposit_count * 2)
+    if deposit_count >= 100:
+        score += 30
+    elif deposit_count >= 50:
+        score += 25
+    elif deposit_count >= 20:
+        score += 20
+    elif deposit_count >= 10:
+        score += 15
+    elif deposit_count >= 5:
+        score += 8
+    else:
+        score += max(0, deposit_count * 2)
 
     # Source diversity (0-40 pts)
-    if unique_sources >= 20: score += 40
-    elif unique_sources >= 10: score += 30
-    elif unique_sources >= 5: score += 20
-    elif unique_sources >= 3: score += 12
-    elif unique_sources >= 2: score += 5
+    if unique_sources >= 20:
+        score += 40
+    elif unique_sources >= 10:
+        score += 30
+    elif unique_sources >= 5:
+        score += 20
+    elif unique_sources >= 3:
+        score += 12
+    elif unique_sources >= 2:
+        score += 5
 
     # Anti-Sybil (0-20 pts)
-    if sybil_ratio <= 0.1: score += 20
-    elif sybil_ratio <= 0.25: score += 15
-    elif sybil_ratio <= 0.5: score += 10
-    elif sybil_ratio <= 0.75: score += 5
+    if sybil_ratio <= 0.1:
+        score += 20
+    elif sybil_ratio <= 0.25:
+        score += 15
+    elif sybil_ratio <= 0.5:
+        score += 10
+    elif sybil_ratio <= 0.75:
+        score += 5
 
     # Temporal spread (0-10 pts)
-    if temporal_spread >= 1440: score += 10  # ~1 day
-    elif temporal_spread >= 720: score += 7   # ~12h
-    elif temporal_spread >= 120: score += 4   # ~2h
+    if temporal_spread >= 1440:
+        score += 10  # ~1 day
+    elif temporal_spread >= 720:
+        score += 7   # ~12h
+    elif temporal_spread >= 120:
+        score += 4   # ~2h
 
     score = min(100, max(0, score))
 
     # 5. Risk level and warnings
-    if score >= 81: risk_level = "EXCELLENT"
-    elif score >= 61: risk_level = "GOOD"
-    elif score >= 41: risk_level = "MODERATE"
-    elif score >= 21: risk_level = "POOR"
-    else: risk_level = "CRITICAL"
+    if score >= 81:
+        risk_level = "EXCELLENT"
+    elif score >= 61:
+        risk_level = "GOOD"
+    elif score >= 41:
+        risk_level = "MODERATE"
+    elif score >= 21:
+        risk_level = "POOR"
+    else:
+        risk_level = "CRITICAL"
 
     warnings = []
     if deposit_count < 5:

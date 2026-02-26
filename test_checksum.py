@@ -9,7 +9,8 @@ def base58_decode(s):
     for char in s.encode("ascii"):
         n = n * 58 + ALPHABET_MAP[char]
 
-    if n == 0: return b""
+    if n == 0:
+        return b""
     byte_length = (n.bit_length() + 7) // 8
     result = n.to_bytes(byte_length, "big")
 
@@ -17,7 +18,8 @@ def base58_decode(s):
     for char in s.encode("ascii"):
         if char == ALPHABET[0]:
             pad_size += 1
-        else: break
+        else:
+            break
     return b"\x00" * pad_size + result
 
 import hashlib

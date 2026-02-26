@@ -10,23 +10,21 @@ import pytest
 from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
     NUMS_H,
-    decode_point,
-    encode_point,
     SECP256K1_P,
+    decode_point,
 )
+from ergo_agent.relayer.deposit_relayer import DepositRelayer
 from ergo_agent.relayer.pool_deployer import (
+    EMPTY_AVL_TREE_HEX,
     GENESIS_THRESHOLD,
     NANOERG,
     POOL_TIERS,
-    EMPTY_AVL_TREE_HEX,
     build_chaff_commitment,
     build_chaff_intent,
     build_genesis_pool_box,
     get_tier_config,
     is_pool_unlocked,
 )
-from ergo_agent.relayer.deposit_relayer import DepositRelayer
-
 
 # ==============================================================================
 # Genesis Lock tests

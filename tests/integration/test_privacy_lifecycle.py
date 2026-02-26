@@ -17,13 +17,13 @@ import os
 import pytest
 
 from ergo_agent.core.node import ErgoNode
-from ergo_agent.core.wallet import Wallet
 from ergo_agent.core.privacy import (
+    AnonymityAssessment,
     analyze_anonymity_set,
     check_withdrawal_safety,
-    AnonymityAssessment,
 )
-from ergo_agent.defi.privacy_client import PrivacyPoolClient, DepositSecret
+from ergo_agent.core.wallet import Wallet
+from ergo_agent.defi.privacy_client import DepositSecret, PrivacyPoolClient
 from ergo_agent.tools.safety import SafetyConfig
 from ergo_agent.tools.toolkit import ErgoToolkit
 
@@ -235,7 +235,7 @@ class TestViewKey:
             secret.commitment_hex, secret.blinding_factor, secret.amount
         )
         assert is_valid is True
-        print(f"\n[+] View key verification: PASSED")
+        print("\n[+] View key verification: PASSED")
 
     def test_verify_view_key_wrong_amount_fails(self, privacy_client):
         """View key with wrong amount should fail verification."""
@@ -244,7 +244,7 @@ class TestViewKey:
             secret.commitment_hex, secret.blinding_factor, secret.amount + 1
         )
         assert is_valid is False
-        print(f"\n[+] Wrong-amount view key: correctly rejected")
+        print("\n[+] Wrong-amount view key: correctly rejected")
 
 
 # --- Bearer Note Transfer ---
@@ -265,7 +265,7 @@ class TestBearerNote:
         assert imported.commitment_hex == secret.commitment_hex
         assert imported.amount == secret.amount
         assert imported.tier == secret.tier
-        print(f"\n[+] Bearer note roundtrip: OK")
+        print("\n[+] Bearer note roundtrip: OK")
 
     def test_bearer_note_tampered_fails(self, privacy_client):
         """Tampered bearer note should raise ValueError."""
@@ -275,4 +275,4 @@ class TestBearerNote:
 
         with pytest.raises(ValueError, match="integrity check failed"):
             PrivacyPoolClient.import_bearer_note(note)
-        print(f"\n[+] Tampered bearer note: correctly rejected")
+        print("\n[+] Tampered bearer note: correctly rejected")

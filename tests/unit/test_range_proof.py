@@ -7,22 +7,20 @@ import secrets
 import pytest
 
 from ergo_agent.crypto.pedersen import (
-    G_COMPRESSED,
+    _GENERATOR,
     SECP256K1_N,
     PedersenCommitment,
     decode_point,
     encode_point,
-    _GENERATOR,
 )
 from ergo_agent.crypto.range_proof import (
-    MAX_VALUE,
     BIT_LENGTH,
+    MAX_VALUE,
     RangeProof,
-    BalanceProof,
-    prove_range,
-    verify_range,
     prove_balance,
+    prove_range,
     verify_balance,
+    verify_range,
 )
 
 

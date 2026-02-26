@@ -27,11 +27,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ergo_agent.crypto.pedersen import decode_point, NUMS_H, G_COMPRESSED
+from ergo_agent.crypto.pedersen import G_COMPRESSED, NUMS_H, decode_point
 from ergo_agent.relayer.deposit_relayer import (
-    MINER_FEE,
     FEE_ERGO_TREE,
-    MIN_BOX_VALUE,
+    MINER_FEE,
     PoolState,
 )
 

@@ -10,7 +10,6 @@ import secrets
 import pytest
 
 from ergo_agent.crypto.dhtuple import (
-    WithdrawalRing,
     build_withdrawal_ring,
     compute_nullifier,
     format_context_extension,
@@ -19,13 +18,11 @@ from ergo_agent.crypto.dhtuple import (
 )
 from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
-    NUMS_H,
     SECP256K1_N,
     PedersenCommitment,
     decode_point,
     encode_point,
 )
-
 
 # ==============================================================================
 # Helpers
@@ -87,9 +84,9 @@ class TestNullifier:
         """Nullifier must be a valid compressed point."""
         r = _random_blinding()
         U = generate_secondary_generator()
-        I = compute_nullifier(r, U)
-        assert len(I) == 66
-        decode_point(I)
+        nul = compute_nullifier(r, U)
+        assert len(nul) == 66
+        decode_point(nul)
 
     def test_different_r_different_nullifier(self):
         """Different blinding factors produce different nullifiers (linkability)."""
@@ -115,15 +112,15 @@ class TestNullifier:
         """verify_nullifier must confirm a correctly computed nullifier."""
         r = _random_blinding()
         U = generate_secondary_generator()
-        I = compute_nullifier(r, U)
-        assert verify_nullifier(I, r, U) is True
+        nul = compute_nullifier(r, U)
+        assert verify_nullifier(nul, r, U) is True
 
     def test_verify_wrong_r(self):
         """verify_nullifier must fail with wrong blinding factor."""
         r = _random_blinding()
         U = generate_secondary_generator()
-        I = compute_nullifier(r, U)
-        assert verify_nullifier(I, r + 1, U) is False
+        nul = compute_nullifier(r, U)
+        assert verify_nullifier(nul, r + 1, U) is False
 
 
 # ==============================================================================

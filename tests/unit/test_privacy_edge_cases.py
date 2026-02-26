@@ -18,7 +18,6 @@ from ergo_agent.core.models import Box, Token
 from ergo_agent.core.privacy import compute_key_image, generate_fresh_secret
 from ergo_agent.defi.privacy_pool import PoolValidationError, PrivacyPoolClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

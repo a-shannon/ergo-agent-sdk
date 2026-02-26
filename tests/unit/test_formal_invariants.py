@@ -20,6 +20,11 @@ import secrets
 
 import pytest
 
+from ergo_agent.crypto.dhtuple import (
+    build_withdrawal_ring,
+    compute_nullifier,
+    generate_secondary_generator,
+)
 from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
     NUMS_H,
@@ -28,28 +33,19 @@ from ergo_agent.crypto.pedersen import (
     decode_point,
     encode_point,
 )
-from ergo_agent.crypto.dhtuple import (
-    WithdrawalRing,
-    build_withdrawal_ring,
-    compute_nullifier,
-    generate_secondary_generator,
-    verify_nullifier,
-)
 from ergo_agent.relayer.deposit_relayer import (
     DepositRelayer,
     IntentToDeposit,
     PoolState,
 )
-from ergo_agent.relayer.withdrawal_relayer import (
-    WithdrawalRelayer,
-    IntentToWithdraw,
-)
 from ergo_agent.relayer.pool_deployer import (
-    GENESIS_THRESHOLD,
     NANOERG,
     is_pool_unlocked,
 )
-
+from ergo_agent.relayer.withdrawal_relayer import (
+    IntentToWithdraw,
+    WithdrawalRelayer,
+)
 
 # ==============================================================================
 # Helpers
@@ -82,11 +78,11 @@ def _make_withdrawal_intent(
 ) -> IntentToWithdraw:
     r = _random_r()
     U = generate_secondary_generator()
-    I = nullifier or compute_nullifier(r, U)
+    nul = nullifier or compute_nullifier(r, U)
     return IntentToWithdraw(
         box_id="intent_" + secrets.token_hex(8),
         value_nanoerg=1_000_000,
-        nullifier_hex=I,
+        nullifier_hex=nul,
         secondary_gen_hex=U,
         payout_ergo_tree=payout,
         ergo_tree="0008cd03" + "ee" * 32,
@@ -140,9 +136,9 @@ class TestDoubleSpendAttack:
         nullifiers = set()
         for _ in range(50):
             r = _random_r()
-            I = compute_nullifier(r, U)
-            assert I not in nullifiers, "Nullifier collision detected!"
-            nullifiers.add(I)
+            nul = compute_nullifier(r, U)
+            assert nul not in nullifiers, "Nullifier collision detected!"
+            nullifiers.add(nul)
 
     def test_genesis_lock_blocks_premature_withdrawal(self):
         """Pool with counter < 100 must reject all withdrawals."""

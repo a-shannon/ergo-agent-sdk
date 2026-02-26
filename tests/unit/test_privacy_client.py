@@ -7,20 +7,15 @@ import secrets
 import pytest
 
 from ergo_agent.crypto.pedersen import (
-    G_COMPRESSED,
-    NUMS_H,
     SECP256K1_N,
     PedersenCommitment,
 )
 from ergo_agent.defi.privacy_client import (
     DepositSecret,
     PrivacyPoolClient,
-    WithdrawalProof,
 )
 from ergo_agent.relayer.pool_deployer import (
-    GENESIS_THRESHOLD,
     NANOERG,
-    POOL_TIERS,
 )
 
 

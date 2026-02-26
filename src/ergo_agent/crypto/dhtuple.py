@@ -48,11 +48,9 @@ from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
     NUMS_H,
     SECP256K1_N,
-    SECP256K1_P,
     decode_point,
     encode_point,
 )
-
 
 # ==============================================================================
 # WithdrawalRing — the core ring structure
@@ -155,8 +153,8 @@ def compute_nullifier(blinding_factor: int, secondary_generator_hex: str) -> str
         )
 
     U = decode_point(secondary_generator_hex)
-    I = blinding_factor * U
-    return encode_point(I)
+    nullifier_pt = blinding_factor * U
+    return encode_point(nullifier_pt)
 
 
 def build_withdrawal_ring(
@@ -280,9 +278,9 @@ def verify_nullifier(
         True if I == r·U, False otherwise.
     """
     try:
-        I = decode_point(nullifier_hex)
+        nullifier_pt = decode_point(nullifier_hex)
         U = decode_point(secondary_generator_hex)
         expected = blinding_factor * U
-        return I.x() == expected.x() and I.y() == expected.y()
+        return nullifier_pt.x() == expected.x() and nullifier_pt.y() == expected.y()
     except (ValueError, Exception):
         return False

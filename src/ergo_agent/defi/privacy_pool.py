@@ -632,7 +632,7 @@ class PrivacyPoolClient:
 
         # Attach signing secrets for ring signature (proveDlog + proveDHTuple)
         # The node needs these to construct the Sigma proof at signing time.
-        from ergo_agent.core.privacy import NUMS_H_HEX, generate_fresh_secret
+        from ergo_agent.core.privacy import NUMS_H_HEX
 
         # Find the depositor's public key in R4 that corresponds to this secret
         depositor_pubkey = self._find_depositor_pubkey(pool_r4, secret_hex)

@@ -9,30 +9,27 @@ import secrets
 
 import pytest
 
+from ergo_agent.crypto.dhtuple import (
+    compute_nullifier,
+    generate_secondary_generator,
+)
 from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
     NUMS_H,
     SECP256K1_N,
     PedersenCommitment,
-    encode_point,
-    decode_point,
-)
-from ergo_agent.crypto.dhtuple import (
-    compute_nullifier,
-    generate_secondary_generator,
 )
 from ergo_agent.relayer.deposit_relayer import (
+    MAX_BATCH_SIZE,
+    MINER_FEE,
     DepositRelayer,
     IntentToDeposit,
     PoolState,
-    MAX_BATCH_SIZE,
-    MINER_FEE,
 )
 from ergo_agent.relayer.withdrawal_relayer import (
-    WithdrawalRelayer,
     IntentToWithdraw,
+    WithdrawalRelayer,
 )
-
 
 # ==============================================================================
 # Helpers
@@ -82,11 +79,11 @@ def _make_intent_withdraw(
 ) -> IntentToWithdraw:
     r = _random_blinding()
     U = generate_secondary_generator()
-    I = compute_nullifier(r, U)
+    nul = compute_nullifier(r, U)
     return IntentToWithdraw(
         box_id="withdraw_" + secrets.token_hex(8),
         value_nanoerg=1_000_000,
-        nullifier_hex=I,
+        nullifier_hex=nul,
         secondary_gen_hex=U,
         payout_ergo_tree=payout_tree,
         ergo_tree="0008cd03" + "ee" * 32,

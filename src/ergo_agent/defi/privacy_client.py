@@ -23,31 +23,24 @@ Dependencies:
 
 from __future__ import annotations
 
-import hashlib
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from ergo_agent.crypto.pedersen import (
-    G_COMPRESSED,
-    NUMS_H,
-    SECP256K1_N,
-    PedersenCommitment,
-    decode_point,
-    encode_point,
-)
 from ergo_agent.crypto.dhtuple import (
     build_withdrawal_ring,
     compute_nullifier,
     generate_secondary_generator,
-    verify_nullifier,
+)
+from ergo_agent.crypto.pedersen import (
+    SECP256K1_N,
+    PedersenCommitment,
 )
 from ergo_agent.relayer.pool_deployer import (
+    MIN_BOX_VALUE,
     NANOERG,
     POOL_TIERS,
-    MIN_BOX_VALUE,
 )
-
 
 # ==============================================================================
 # Data Classes
@@ -276,7 +269,7 @@ class PrivacyPoolClient:
         U = generate_secondary_generator()
 
         # Compute nullifier I = r·U
-        I = compute_nullifier(secret.blinding_factor, U)
+        nullifier_hex = compute_nullifier(secret.blinding_factor, U)
 
         # Build the DHTuple ring
         ring = build_withdrawal_ring(
@@ -287,7 +280,7 @@ class PrivacyPoolClient:
         )
 
         return WithdrawalProof(
-            nullifier_hex=I,
+            nullifier_hex=nullifier_hex,
             secondary_gen_hex=U,
             payout_ergo_tree=payout_ergo_tree,
             ring_size=ring.ring_size,
@@ -296,7 +289,7 @@ class PrivacyPoolClient:
                 "commitments": ring.ring_commitments,
                 "opened_points": ring.opened_points,
                 "secondary_gen": U,
-                "nullifier": I,
+                "nullifier": nullifier_hex,
             },
         )
 
