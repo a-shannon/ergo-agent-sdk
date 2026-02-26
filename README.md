@@ -8,7 +8,7 @@ Give any LLM agent (Claude, GPT-4, Gemini, LangChain, CrewAI, AutoGPT...) the ab
 [![Documentation Status](https://readthedocs.org/projects/ergo-agent-sdk/badge/?version=latest)](https://ergo-agent-sdk.readthedocs.io/en/latest/?badge=latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-155%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-301%20passing-brightgreen.svg)]()
 
 ---
 
@@ -219,8 +219,8 @@ This is an open-source project for the Ergo ecosystem. PRs welcome.
 - v0.2.x — Advanced Transaction Builder + Privacy primitives (Ring Signatures)
 - v0.3.x — SigmaUSD + Rosen Bridge adapters + Treasury contracts
 - v0.5.0 — Explicit inputs, context extensions, EIP-004 minting, Privacy Pool Client
-- v0.6.0 — AvlTree nullifier set, PrivacyPoolV6 contract, key image computation, secret-based withdrawal flow *(current)*
-- v0.7.0 — Relayer API, end-to-end testnet privacy flow, multi-pool support
+- v0.6.0 — AvlTree nullifier set, PrivacyPoolV6 contract, key image computation, secret-based withdrawal flow
+- v0.7.0 — Relayer API, end-to-end testnet privacy flow, multi-pool support *(current)*
 
 ---
 
