@@ -11,7 +11,7 @@ from ergo_agent.core.models import Box, Token, Transaction
 from ergo_agent.core.node import ErgoNode
 from ergo_agent.core.wallet import Wallet
 
-__version__ = "0.1.0"
+__version__ = "0.5.0"
 __all__ = [
     "ErgoNode",
     "Wallet",

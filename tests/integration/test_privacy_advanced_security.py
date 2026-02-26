@@ -368,13 +368,13 @@ class TestLiveness:
     Tests for protocol availability and degradation.
     """
 
-    def test_pool_health_reports_liquidity(self, cash_client):
+    def test_pool_health_reports_liquidity(self, pool_client):
         """
         [FIX 5.2] Pool health must report actual withdrawable liquidity,
         not just ring size.
         """
-        pool = get_pool(cash_client)
-        health = cash_client.evaluate_pool_health(pool["pool_id"])
+        pool = get_pool(pool_client)
+        health = pool_client.evaluate_pool_health(pool["pool_id"])
 
         assert health["withdrawable"] >= 0
         assert health["token_balance"] >= 0
@@ -386,17 +386,17 @@ class TestLiveness:
             print(f"\n[FIX 5.2 VERIFIED] Liquidity adequate: "
                   f"{health['withdrawable']} withdrawals available")
 
-    def test_self_serve_withdrawal_builds(self, cash_client, wallet):
+    def test_self_serve_withdrawal_builds(self, pool_client, wallet):
         """
         [FINDING 5.1] Self-serve withdrawal (user pays gas) must still work.
         Relayer is needed for privacy, not for liveness.
         """
-        pool = get_pool(cash_client)
+        pool = get_pool(pool_client)
         if pool["depositors"] < 2:
             pytest.skip("Pool ring < 2")
 
         safe_secret = "c5" * 32  # V6: pass secret instead of key image
-        builder = cash_client.build_withdrawal_tx(
+        builder = pool_client.build_withdrawal_tx(
             pool["pool_id"], wallet.address, safe_secret,
         )
         assert len(builder._outputs) == 2
