@@ -9,34 +9,43 @@ transaction signing time.
 Mathematical foundation:
     For a withdrawal of `amount` from a ring of Pedersen Commitments {C_0, ..., C_{n-1}}:
 
-    1. Withdrawer picks a random secondary generator U
-    2. Nullifier (Key Image): I = r·U  (where r is the blinding factor)
-    3. Ring proposition: anyOf([
-           proveDHTuple(G, U, C_i - amount·H, I)
+    1. Nullifier (Key Image): I = r·H  (H = U_global, the globally fixed NUMS generator)
+    2. Ring proposition: anyOf([
+           proveDHTuple(G, H, C_i - amount·H, I)
            for C_i in ring
        ])
 
     For the real index j (where C_j = r·G + amount·H):
         C_j - amount·H = r·G
-        So proveDHTuple(G, U, r·G, r·U) holds because log_G(r·G) == log_U(r·U) == r
+        So proveDHTuple(G, H, r·G, r·H) holds because log_G(r·G) == log_H(r·H) == r
 
     For decoy indices i ≠ j:
         C_i - amount·H = r_i·G  (different blinding factor)
-        proveDHTuple(G, U, r_i·G, r·U) fails because r_i ≠ r
+        proveDHTuple(G, H, r_i·G, r·H) fails because r_i ≠ r
 
     The anyOf() with the Sigma OR protocol hides which index is real.
+
+v9 Security Changes (CRIT-2 fix):
+    - U is no longer user-supplied per withdrawal.
+    - U_global = H (the NUMS generator) is hardcoded in the MasterPoolBox contract.
+    - Nullifier is now deterministic per secret key r: I = r·H.
+    - This prevents double-spending via fresh-U reuse: the same r always produces
+      the same I, so the AVL tree's duplicate-insert check reliably prevents replay.
 
 Sequential Constraint:
     Ergo's Sigma protocol hashes tx.messageToSign into the Fiat-Shamir
     challenge, so each withdrawal must be processed 1-by-1 sequentially.
-    The Relayer cannot batch multiple independent withdrawals.
+    Users must construct, sign, and broadcast the withdrawal TX interactively
+    (HIGH-1 clarification: pre-signed proofs cannot be relayed asynchronously).
+
+Context Extension for MasterPoolBox (v9):
+    Var 0: GroupElement — Nullifier I = r·H
+    Var 1: Coll[Coll[Byte]] — Ring member public keys (compressed hex)
+    (U is no longer passed as a context variable — it's hardcoded as H in the contract)
 
 References:
     [Ergo]  Ergo platform, SigmaState §5.3 — proveDHTuple Sigma protocol.
-    [FS07]  Fujisaki & Suzuki, "Traceable Ring Signature", PKC 2007
-            (1-out-of-n DH ring signatures).
-    [LWW04] Liu, Wei & Wong, "Linkable Spontaneous Anonymous Group Signature",
-            ACISP 2004 (per-withdrawal NUMS secondary generator for unlinkability).
+    [FS07]  Fujisaki & Suzuki, "Traceable Ring Signature", PKC 2007.
 """
 
 from __future__ import annotations
@@ -52,6 +61,7 @@ from ergo_agent.crypto.pedersen import (
     encode_point,
 )
 
+
 # ==============================================================================
 # WithdrawalRing — the core ring structure
 # ==============================================================================
@@ -63,23 +73,21 @@ class WithdrawalRing:
     A fully constructed DHTuple ring ready for transaction submission.
 
     Attributes:
-        secondary_generator: Compressed hex of U (per-withdrawal random point).
-        nullifier: Compressed hex of I = r·U (the key image / nullifier).
+        nullifier: Compressed hex of I = r·H (the key image / nullifier).
         ring_commitments: List of compressed hex commitment points in the ring.
         opened_points: List of compressed hex points (C_i - amount·H) for each ring member.
-        amount: The denomination being withdrawn.
+        amount: The denomination being withdrawn in nanoERG.
         real_index: Index of the real depositor in the ring (for signing).
     """
-    secondary_generator: str  # U
-    nullifier: str             # I = r·U
+    nullifier: str               # I = r·H
     ring_commitments: list[str]  # [C_0, ..., C_{n-1}]
-    opened_points: list[str]    # [C_i - amt·H for each C_i]
+    opened_points: list[str]     # [C_i - amt·H for each C_i]
     amount: int
     real_index: int
 
     @property
     def ring_size(self) -> int:
-        """Number of members in the ring (anonymity set size)."""
+        """Number of members in the ring."""
         return len(self.ring_commitments)
 
     def to_ergoscript_proposition(self) -> str:
@@ -87,7 +95,7 @@ class WithdrawalRing:
         Format the ring as an ErgoScript Sigma proposition string.
 
         Returns the anyOf(proveDHTuple(...)) expression that would appear
-        in the MasterPoolBox withdrawal contract.
+        in the MasterPoolBox withdrawal contract. U = H (hardcoded in contract).
 
         Returns:
             ErgoScript source fragment.
@@ -97,7 +105,7 @@ class WithdrawalRing:
             stmts.append(
                 f'proveDHTuple('
                 f'decodePoint(fromBase16("{G_COMPRESSED}")), '
-                f'decodePoint(fromBase16("{self.secondary_generator}")), '
+                f'decodePoint(fromBase16("{NUMS_H}")), '
                 f'decodePoint(fromBase16("{opened}")), '
                 f'decodePoint(fromBase16("{self.nullifier}"))'
                 f')'
@@ -107,54 +115,34 @@ class WithdrawalRing:
 
 
 # ==============================================================================
-# Ring construction functions
+# Core functions
 # ==============================================================================
 
 
-def generate_secondary_generator() -> str:
+def compute_nullifier(blinding_factor: int) -> str:
     """
-    Generate a fresh random secondary generator U for a withdrawal.
+    Compute the nullifier (key image) I = r·H.
 
-    U is a random point on secp256k1 with unknown discrete log.
-    Each withdrawal uses a unique U to ensure unlinkability between
-    different withdrawals by the same depositor.
-
-    Returns:
-        66-char compressed hex of U.
-    """
-    # Pick a random scalar and multiply by G
-    scalar = secrets.randbelow(SECP256K1_N - 1) + 1
-    G = decode_point(G_COMPRESSED)
-    U = scalar * G
-    return encode_point(U)
-
-
-def compute_nullifier(blinding_factor: int, secondary_generator_hex: str) -> str:
-    """
-    Compute the nullifier (key image) I = r·U.
-
-    The nullifier uniquely identifies a deposit without revealing which
-    commitment it corresponds to. It is inserted into the Nullifier AVL
-    Tree to prevent double-spending.
+    H = NUMS_H is the globally fixed secondary generator (U_global).
+    The nullifier is strictly deterministic per secret key r — no
+    user-supplied parameter. This prevents double-spending via fresh-U
+    reuse (CRIT-2 fix).
 
     Args:
         blinding_factor: The depositor's secret blinding factor r.
-        secondary_generator_hex: Compressed hex of the secondary generator U.
 
     Returns:
-        66-char compressed hex of I = r·U.
+        66-char compressed hex of I = r·H.
 
     Raises:
-        ValueError: If blinding_factor is out of range.
+        ValueError: If blinding_factor is out of range [1, N-1].
     """
     if blinding_factor <= 0 or blinding_factor >= SECP256K1_N:
         raise ValueError(
             f"blinding_factor must be in [1, N-1], got {blinding_factor}"
         )
-
-    U = decode_point(secondary_generator_hex)
-    nullifier_pt = blinding_factor * U
-    return encode_point(nullifier_pt)
+    H = decode_point(NUMS_H)
+    return encode_point(blinding_factor * H)
 
 
 def build_withdrawal_ring(
@@ -162,7 +150,6 @@ def build_withdrawal_ring(
     amount: int,
     real_commitment_hex: str,
     decoy_commitment_hexes: list[str],
-    secondary_generator_hex: str | None = None,
 ) -> WithdrawalRing:
     """
     Construct a complete DHTuple withdrawal ring.
@@ -171,12 +158,13 @@ def build_withdrawal_ring(
     drawn from the Global Deposit Tree, then assembles the ring structure
     needed for the proveDHTuple anyOf() Sigma proposition.
 
+    Nullifier is computed as I = r·H (U_global = H, CRIT-2 fix).
+
     Args:
         blinding_factor: The depositor's secret r (integer in [1, N-1]).
-        amount: The pool denomination (e.g., 100 for 100 ERG pool).
+        amount: The pool denomination in nanoERG (e.g., 10_000_000_000 for 10 ERG).
         real_commitment_hex: Compressed hex of the depositor's own commitment C = r·G + amt·H.
         decoy_commitment_hexes: List of compressed hex decoy commitments from the Deposit Tree.
-        secondary_generator_hex: Optional pre-generated U. If None, a fresh U is generated.
 
     Returns:
         WithdrawalRing with the full ring structure ready for transaction building.
@@ -194,12 +182,8 @@ def build_withdrawal_ring(
     if not decoy_commitment_hexes:
         raise ValueError("At least one decoy commitment is required for a ring")
 
-    # Generate or use provided secondary generator
-    if secondary_generator_hex is None:
-        secondary_generator_hex = generate_secondary_generator()
-
-    # Compute nullifier I = r·U
-    nullifier_hex = compute_nullifier(blinding_factor, secondary_generator_hex)
+    # Compute nullifier I = r·H (fixed NUMS generator, no user-supplied U)
+    nullifier_hex = compute_nullifier(blinding_factor)
 
     # Build the ring: insert real commitment at a random position among decoys
     ring = list(decoy_commitment_hexes)
@@ -227,7 +211,6 @@ def build_withdrawal_ring(
         )
 
     return WithdrawalRing(
-        secondary_generator=secondary_generator_hex,
         nullifier=nullifier_hex,
         ring_commitments=ring,
         opened_points=opened_points,
@@ -241,9 +224,12 @@ def format_context_extension(ring: WithdrawalRing) -> dict[str, str]:
     Build the Sigma-serialized context extension for a withdrawal transaction.
 
     Packs the ring data into the context variables expected by the
-    MasterPoolBox withdrawal contract:
-        Var 0: GroupElement — Nullifier I
-        Var 1: GroupElement — Secondary generator U
+    MasterPoolBox withdrawal contract (v9):
+        Var 0: GroupElement — Nullifier I = r·H
+        Var 1: Coll[Coll[Byte]] — ring member public keys (compressed hex)
+
+    Note: In v9, U (secondary generator) is no longer passed as a context
+    variable — it is hardcoded as H (NUMS_H) inside the MasterPoolBox contract.
 
     Args:
         ring: A fully constructed WithdrawalRing.
@@ -253,34 +239,42 @@ def format_context_extension(ring: WithdrawalRing) -> dict[str, str]:
     """
     # Var 0: GroupElement (type 0x07 + 33 compressed bytes)
     var0 = "07" + ring.nullifier
-    # Var 1: GroupElement (type 0x07 + 33 compressed bytes)
-    var1 = "07" + ring.secondary_generator
+
+    # Var 1: Coll[Coll[Byte]] — ring member keys
+    # Each key is a 33-byte compressed point; Sigma serialisation:
+    # type tag 0x0c (Coll[Byte]), then length-prefixed bytes per member
+    # Packed as outer Coll[Coll[Byte]] (type 0x0c0c)
+    # For compatibility with ergo-lib encoding, pass as flat hex list.
+    var1_entries = ring.ring_commitments  # list of compressed-hex strings
+    # We encode as Coll[Byte] array concatenated with length prefix per item.
+    # Simple wire format: concatenate all 33-byte points prefixed by their count.
+    num_members = len(var1_entries)
+    # VLQ-encode count (single byte sufficient for ring sizes ≤ 127)
+    count_byte = format(num_members, "02x")
+    raw_points = "".join(var1_entries)  # each is 66 hex chars = 33 bytes
+    var1 = "0c0c" + count_byte + raw_points
+
     return {"0": var0, "1": var1}
 
 
-def verify_nullifier(
-    nullifier_hex: str,
-    blinding_factor: int,
-    secondary_generator_hex: str,
-) -> bool:
+def verify_nullifier(nullifier_hex: str, blinding_factor: int) -> bool:
     """
-    Verify that a nullifier was correctly computed as I = r·U.
+    Verify that a nullifier was correctly computed as I = r·H.
 
     Used by auditors to verify withdrawal provenance when the depositor
-    discloses their blinding factor r and the secondary generator U.
+    discloses their blinding factor r.
 
     Args:
         nullifier_hex: Compressed hex of the claimed nullifier I.
         blinding_factor: The depositor's blinding factor r.
-        secondary_generator_hex: Compressed hex of the secondary generator U.
 
     Returns:
-        True if I == r·U, False otherwise.
+        True if I == r·H, False otherwise.
     """
     try:
         nullifier_pt = decode_point(nullifier_hex)
-        U = decode_point(secondary_generator_hex)
-        expected = blinding_factor * U
+        H = decode_point(NUMS_H)
+        expected = blinding_factor * H
         return nullifier_pt.x() == expected.x() and nullifier_pt.y() == expected.y()
     except (ValueError, Exception):
         return False

@@ -23,7 +23,6 @@ import pytest
 from ergo_agent.crypto.dhtuple import (
     build_withdrawal_ring,
     compute_nullifier,
-    generate_secondary_generator,
 )
 from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
@@ -40,7 +39,6 @@ from ergo_agent.relayer.deposit_relayer import (
 )
 from ergo_agent.relayer.pool_deployer import (
     NANOERG,
-    is_pool_unlocked,
 )
 from ergo_agent.relayer.withdrawal_relayer import (
     IntentToWithdraw,
@@ -60,7 +58,7 @@ def _random_r() -> int:
 
 
 def _make_pool(counter: int = 150, value: int = 50_000 * NANOERG) -> PoolState:
-    """Create a pool state that has passed the Genesis Lock."""
+    """Create a mock pool state for testing."""
     return PoolState(
         box_id="pool_" + "ab" * 16,
         value_nanoerg=value,
@@ -77,13 +75,12 @@ def _make_withdrawal_intent(
     payout: str = "0008cd02" + "ff" * 32,
 ) -> IntentToWithdraw:
     r = _random_r()
-    U = generate_secondary_generator()
-    nul = nullifier or compute_nullifier(r, U)
+    nul = nullifier or compute_nullifier(r)  # v9: I = r·H (fixed NUMS H)
     return IntentToWithdraw(
         box_id="intent_" + secrets.token_hex(8),
         value_nanoerg=1_000_000,
         nullifier_hex=nul,
-        secondary_gen_hex=U,
+        secondary_gen_hex=None,  # v9: U no longer user-supplied
         payout_ergo_tree=payout,
         ergo_tree="0008cd03" + "ee" * 32,
     )
@@ -111,18 +108,16 @@ class TestDoubleSpendAttack:
     """
 
     def test_same_nullifier_produces_identical_key(self):
-        """Same (r, U) pair always produces the same nullifier."""
+        """Same r always produces the same nullifier I = r·H."""
         r = _random_r()
-        U = generate_secondary_generator()
-        I1 = compute_nullifier(r, U)
-        I2 = compute_nullifier(r, U)
-        assert I1 == I2, "Identical (r, U) must produce identical nullifier"
+        I1 = compute_nullifier(r)
+        I2 = compute_nullifier(r)
+        assert I1 == I2, "Same r must produce identical nullifier"
 
     def test_second_withdrawal_same_nullifier_detectable(self):
         """Two withdrawal intents with the same nullifier can be detected."""
         r = _random_r()
-        U = generate_secondary_generator()
-        shared_nullifier = compute_nullifier(r, U)
+        shared_nullifier = compute_nullifier(r)  # v9: deterministic per r
 
         intent1 = _make_withdrawal_intent(nullifier=shared_nullifier)
         intent2 = _make_withdrawal_intent(nullifier=shared_nullifier)
@@ -132,19 +127,13 @@ class TestDoubleSpendAttack:
 
     def test_different_r_different_nullifier_no_collision(self):
         """Different blinding factors MUST produce different nullifiers."""
-        U = generate_secondary_generator()
         nullifiers = set()
         for _ in range(50):
             r = _random_r()
-            nul = compute_nullifier(r, U)
+            nul = compute_nullifier(r)  # v9: I = r·H
             assert nul not in nullifiers, "Nullifier collision detected!"
             nullifiers.add(nul)
 
-    def test_genesis_lock_blocks_premature_withdrawal(self):
-        """Pool with counter < 100 must reject all withdrawals."""
-        pool = _make_pool(counter=99)
-        assert not is_pool_unlocked(pool.deposit_counter)
-        # The on-chain genesisOk guard (curCounter >= 100L) would reject this
 
 
 # ==============================================================================

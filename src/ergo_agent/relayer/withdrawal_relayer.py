@@ -43,8 +43,9 @@ class IntentToWithdraw:
     Attributes:
         box_id: The UTXO box ID.
         value_nanoerg: ERG amount in the box (minimum box value).
-        nullifier_hex: Compressed nullifier I from R4.
-        secondary_gen_hex: Compressed secondary generator U from R5.
+        nullifier_hex: Compressed nullifier I = r·H from R4.
+        secondary_gen_hex: Deprecated (v9). U is no longer user-supplied;
+            the contract uses U_global = H. Set to None.
         payout_ergo_tree: Target payout address ErgoTree bytes (from R6).
         ergo_tree: The box's ErgoTree.
         raw_bytes_hex: Raw serialized box bytes (for inputsRaw).
@@ -52,7 +53,7 @@ class IntentToWithdraw:
     box_id: str
     value_nanoerg: int
     nullifier_hex: str
-    secondary_gen_hex: str
+    secondary_gen_hex: str | None  # Deprecated v9 — U=H hardcoded in contract
     payout_ergo_tree: str
     ergo_tree: str
     raw_bytes_hex: str = ""
@@ -84,9 +85,12 @@ class WithdrawalRelayer:
         Checks:
         - Nullifier is a valid compressed secp256k1 point
         - Nullifier is not G or H (trivial points)
-        - Secondary generator is a valid point
         - Payout address is non-empty
         - Pool has sufficient ERG for withdrawal
+
+        Note: Secondary generator (U) is no longer validated here.
+        In v9, U_global = H is hardcoded in the contract; the intent box
+        does not carry a user-supplied U (CRIT-2 fix).
 
         Args:
             intent: The pending intent box to validate.
@@ -104,12 +108,6 @@ class WithdrawalRelayer:
         if intent.nullifier_hex == G_COMPRESSED:
             return False
         if intent.nullifier_hex == NUMS_H:
-            return False
-
-        # Secondary generator must be valid
-        try:
-            decode_point(intent.secondary_gen_hex)
-        except (ValueError, Exception):
             return False
 
         # Payout address must be non-empty

@@ -15,7 +15,6 @@ from ergo_agent.crypto.dhtuple import (
     build_withdrawal_ring,
     compute_nullifier,
     format_context_extension,
-    generate_secondary_generator,
     verify_nullifier,
 )
 from ergo_agent.crypto.multi_asset import (
@@ -49,12 +48,11 @@ __all__ = [
     "decode_point",
     "encode_point",
     "hash_to_curve",
-    # DHTuple
+    # DHTuple (v9: U=H fixed; nullifier I=r·H)
     "WithdrawalRing",
     "build_withdrawal_ring",
     "compute_nullifier",
     "format_context_extension",
-    "generate_secondary_generator",
     "verify_nullifier",
     # Range Proofs
     "RangeProof",
