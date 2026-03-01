@@ -26,7 +26,7 @@ EXPLORER_URL = os.environ.get("ERGO_EXPLORER_URL", "https://api-testnet.ergoplat
 GROUP_GENERATOR = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
 
 # The H constant from the contract (line 64)
-H_CONSTANT = "02eab569326ae73e525b96643b2c31300e822007c91faf0c356226c4942ebe9eb2"
+H_CONSTANT = "022975f1d28b92b6e84499b83b0797ef5235553eeb7edaa0cea243c1128c2fe739"
 
 
 @pytest.fixture(scope="module")

@@ -36,7 +36,6 @@ from ergo_agent.crypto.pedersen import (
     encode_point,
 )
 
-
 # ==============================================================================
 # Shared helpers — model the contract's math, not the SDK API
 # ==============================================================================
@@ -187,8 +186,8 @@ class TestCrit2NullifierMalleability:
         nullifiers = set()
         for _ in range(10):
             U_hex = _random_point()
-            I = _nullifier_custom_U(r, U_hex)
-            nullifiers.add(I)
+            nullifier_pt = _nullifier_custom_U(r, U_hex)
+            nullifiers.add(nullifier_pt)
 
         assert len(nullifiers) == 10, (
             "EXPLOIT: Same depositor with 10 different U values produces 10 unique "
@@ -218,9 +217,9 @@ class TestCrit2NullifierMalleability:
         nullifiers = set()
         for _ in range(50):
             r = _random_scalar()
-            I = _nullifier_fixed_H(r)
-            assert I not in nullifiers, "Nullifier collision: two depositors got same I"
-            nullifiers.add(I)
+            nullifier_pt = _nullifier_fixed_H(r)
+            assert nullifier_pt not in nullifiers, "Nullifier collision: two depositors got same I"
+            nullifiers.add(nullifier_pt)
 
     def test_fixed_nullifier_passes_contract_safety_check(self):
         """
@@ -230,9 +229,9 @@ class TestCrit2NullifierMalleability:
         """
         for _ in range(20):
             r = _random_scalar()
-            I = _nullifier_fixed_H(r)
-            assert contract_nullifier_check(I, r), (
-                f"Nullifier for r failed contract safety check (I == G or I == H)."
+            nullifier_pt = _nullifier_fixed_H(r)
+            assert contract_nullifier_check(nullifier_pt, r), (
+                "Nullifier for r failed contract safety check (I == G or I == H)."
             )
 
     def test_attacker_custom_u_produces_different_nullifier_than_fixed_h(self):

@@ -13,7 +13,6 @@ from ergo_agent.crypto.dhtuple import (
     build_withdrawal_ring,
     compute_nullifier,
     format_context_extension,
-    generate_secondary_generator,
     verify_nullifier,
 )
 from ergo_agent.crypto.pedersen import (
@@ -42,26 +41,26 @@ def _make_commitment(amount: int) -> tuple[int, str]:
 
 
 # ==============================================================================
-# Secondary generator tests
+# Fixed generator (NUMS H) tests
 # ==============================================================================
 
 
-class TestSecondaryGenerator:
-    """Tests for U generation."""
+class TestFixedGenerator:
+    """v9: U = H globally (no per-withdrawal U). Verify the constant is valid."""
 
-    def test_valid_point(self):
-        """U must be a valid 66-char compressed secp256k1 point."""
-        U = generate_secondary_generator()
-        assert len(U) == 66
-        assert U[:2] in ("02", "03")
-        # Must be decodable
-        decode_point(U)
+    def test_nums_h_is_valid_point(self):
+        """NUMS_H must be a valid 66-char compressed secp256k1 point."""
+        from ergo_agent.crypto.pedersen import NUMS_H
+        assert len(NUMS_H) == 66
+        assert NUMS_H[:2] in ("02", "03")
+        decode_point(NUMS_H)
 
-    def test_uniqueness(self):
-        """Two successive calls should produce different U values."""
-        U1 = generate_secondary_generator()
-        U2 = generate_secondary_generator()
-        assert U1 != U2
+    def test_nullifier_uses_h(self):
+        """I = r·H; encoding H back from the nullifier/r should match NUMS_H."""
+        r = _random_blinding()
+        nul = compute_nullifier(r)
+        # Verify: I = r·H  ⇒  verify_nullifier(I, r) must pass
+        assert verify_nullifier(nul, r) is True
 
 
 # ==============================================================================
@@ -70,57 +69,44 @@ class TestSecondaryGenerator:
 
 
 class TestNullifier:
-    """Tests for I = r·U computation."""
+    """Tests for I = r·H computation (v9 fixed-H model)."""
 
     def test_deterministic(self):
-        """Same r and U always produce the same I."""
+        """Same r always produces the same I (H is fixed globally)."""
         r = _random_blinding()
-        U = generate_secondary_generator()
-        I1 = compute_nullifier(r, U)
-        I2 = compute_nullifier(r, U)
+        I1 = compute_nullifier(r)
+        I2 = compute_nullifier(r)
         assert I1 == I2
 
     def test_valid_point(self):
         """Nullifier must be a valid compressed point."""
         r = _random_blinding()
-        U = generate_secondary_generator()
-        nul = compute_nullifier(r, U)
+        nul = compute_nullifier(r)
         assert len(nul) == 66
         decode_point(nul)
 
     def test_different_r_different_nullifier(self):
-        """Different blinding factors produce different nullifiers (linkability)."""
-        U = generate_secondary_generator()
+        """Different blinding factors produce different nullifiers."""
         r1 = _random_blinding()
         r2 = _random_blinding()
-        assert compute_nullifier(r1, U) != compute_nullifier(r2, U)
-
-    def test_different_U_different_nullifier(self):
-        """Same r with different U produces different nullifier (unlinkability)."""
-        r = _random_blinding()
-        U1 = generate_secondary_generator()
-        U2 = generate_secondary_generator()
-        assert compute_nullifier(r, U1) != compute_nullifier(r, U2)
+        assert compute_nullifier(r1) != compute_nullifier(r2)
 
     def test_rejects_zero_blinding(self):
         """Zero blinding factor must be rejected."""
-        U = generate_secondary_generator()
         with pytest.raises(ValueError, match="blinding_factor"):
-            compute_nullifier(0, U)
+            compute_nullifier(0)
 
     def test_verify_roundtrip(self):
         """verify_nullifier must confirm a correctly computed nullifier."""
         r = _random_blinding()
-        U = generate_secondary_generator()
-        nul = compute_nullifier(r, U)
-        assert verify_nullifier(nul, r, U) is True
+        nul = compute_nullifier(r)
+        assert verify_nullifier(nul, r) is True
 
     def test_verify_wrong_r(self):
         """verify_nullifier must fail with wrong blinding factor."""
         r = _random_blinding()
-        U = generate_secondary_generator()
-        nul = compute_nullifier(r, U)
-        assert verify_nullifier(nul, r + 1, U) is False
+        nul = compute_nullifier(r)
+        assert verify_nullifier(nul, r + 1) is False
 
 
 # ==============================================================================
@@ -167,7 +153,7 @@ class TestBuildWithdrawalRing:
         r, C_real = _make_commitment(100)
         decoys = [_make_commitment(100)[1] for _ in range(3)]
         ring = build_withdrawal_ring(r, 100, C_real, decoys)
-        assert verify_nullifier(ring.nullifier, r, ring.secondary_generator) is True
+        assert verify_nullifier(ring.nullifier, r) is True
 
     def test_wrong_blinding_fails_integrity(self):
         """Ring construction must fail if blinding factor doesn't match commitment."""
@@ -190,14 +176,6 @@ class TestBuildWithdrawalRing:
         with pytest.raises(ValueError, match="decoy"):
             build_withdrawal_ring(r, 100, C_real, [])
 
-    def test_custom_secondary_generator(self):
-        """Ring should use a pre-supplied U when provided."""
-        r, C_real = _make_commitment(100)
-        decoys = [_make_commitment(100)[1] for _ in range(3)]
-        custom_U = generate_secondary_generator()
-        ring = build_withdrawal_ring(r, 100, C_real, decoys, secondary_generator_hex=custom_U)
-        assert ring.secondary_generator == custom_U
-
     def test_real_index_randomized(self):
         """Over many runs, real_index should not always be the same position."""
         r, C_real = _make_commitment(100)
@@ -219,22 +197,22 @@ class TestContextExtension:
     """Tests for Sigma-serialized context extension."""
 
     def test_correct_type_tags(self):
-        """Var 0 and Var 1 must have GroupElement type tag 0x07."""
+        """Var 0 (nullifier) must have GroupElement type tag 0x07. Var 1 encodes ring keys."""
         r, C_real = _make_commitment(100)
         decoys = [_make_commitment(100)[1] for _ in range(3)]
         ring = build_withdrawal_ring(r, 100, C_real, decoys)
         ext = format_context_extension(ring)
         assert ext["0"].startswith("07")  # Nullifier
-        assert ext["1"].startswith("07")  # Secondary generator
+        assert ext["1"].startswith("0c")  # Ring keys (Coll type)
 
     def test_correct_lengths(self):
-        """Each var should be 2 (type) + 66 (point) = 68 hex chars."""
+        """Var 0 (nullifier) should be 2+66=68 hex. Var 1 (ring keys) starts with 0e."""
         r, C_real = _make_commitment(100)
         decoys = [_make_commitment(100)[1] for _ in range(3)]
         ring = build_withdrawal_ring(r, 100, C_real, decoys)
         ext = format_context_extension(ring)
         assert len(ext["0"]) == 68  # 07 + 66-char point
-        assert len(ext["1"]) == 68
+        assert ext["1"][:2] == "0c"  # Coll type prefix for ring keys
 
 
 # ==============================================================================
@@ -263,11 +241,10 @@ class TestErgoScriptProposition:
         assert prop.count("proveDHTuple(") == 3  # 2 decoys + 1 real
 
     def test_contains_generator_and_nullifier(self):
-        """Proposition must reference G, U, and I."""
+        """Proposition must reference G and I (nullifier)."""
         r, C_real = _make_commitment(100)
         decoys = [_make_commitment(100)[1] for _ in range(2)]
         ring = build_withdrawal_ring(r, 100, C_real, decoys)
         prop = ring.to_ergoscript_proposition()
         assert G_COMPRESSED in prop
-        assert ring.secondary_generator in prop
         assert ring.nullifier in prop

@@ -30,7 +30,6 @@ from typing import Any
 from ergo_agent.crypto.dhtuple import (
     build_withdrawal_ring,
     compute_nullifier,
-    generate_secondary_generator,
 )
 from ergo_agent.crypto.pedersen import (
     SECP256K1_N,
@@ -97,14 +96,15 @@ class WithdrawalProof:
     """
     A withdrawal proof — everything needed to create an IntentToWithdraw box.
 
-    Contains the DHTuple ring signature, nullifier, secondary generator,
-    and payout destination.
+    Contains the DHTuple ring signature, nullifier, and payout destination.
+    In v9, U (secondary generator) is globally fixed as H in the contract;
+    it is no longer user-supplied or stored per-withdrawal.
     """
     nullifier_hex: str
-    """Key Image I = r·U (66-char hex)."""
+    """Key Image I = r·H (66-char hex, v9 fixed-H model)."""
 
-    secondary_gen_hex: str
-    """Secondary generator U (66-char hex, random per withdrawal)."""
+    secondary_gen_hex: str | None  # Deprecated v9 — U=H hardcoded in contract
+    """Deprecated. Always None in v9."""
 
     payout_ergo_tree: str
     """ErgoTree of the payout destination address."""
@@ -265,11 +265,8 @@ class PrivacyPoolClient:
         Raises:
             ValueError: If the ring construction fails (integrity check).
         """
-        # Generate a fresh secondary generator U for this withdrawal
-        U = generate_secondary_generator()
-
-        # Compute nullifier I = r·U
-        nullifier_hex = compute_nullifier(secret.blinding_factor, U)
+        # v9: U_global = H (hardcoded in the contract); no user-supplied U
+        nullifier_hex = compute_nullifier(secret.blinding_factor)
 
         # Build the DHTuple ring
         ring = build_withdrawal_ring(
@@ -281,14 +278,13 @@ class PrivacyPoolClient:
 
         return WithdrawalProof(
             nullifier_hex=nullifier_hex,
-            secondary_gen_hex=U,
+            secondary_gen_hex=None,  # v9: U no longer user-supplied
             payout_ergo_tree=payout_ergo_tree,
             ring_size=ring.ring_size,
             ring_data={
                 "real_index": ring.real_index,
                 "commitments": ring.ring_commitments,
                 "opened_points": ring.opened_points,
-                "secondary_gen": U,
                 "nullifier": nullifier_hex,
             },
         )
@@ -321,7 +317,7 @@ class PrivacyPoolClient:
             "assets": [],
             "registers": {
                 "R4": "07" + proof.nullifier_hex,
-                "R5": "07" + proof.secondary_gen_hex,
+                # R5: genesisId — filled by pool deployer at submission time
                 "R6": proof.payout_ergo_tree,
             },
             "meta": {

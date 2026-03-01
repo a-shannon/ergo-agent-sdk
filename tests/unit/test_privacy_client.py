@@ -112,7 +112,7 @@ class TestBuildWithdrawalProof:
         proof = client.build_withdrawal_proof(secret, decoys, payout)
 
         assert len(proof.nullifier_hex) == 66
-        assert len(proof.secondary_gen_hex) == 66
+        assert proof.secondary_gen_hex is None  # v9: U=H hardcoded, not per-withdrawal
         assert proof.payout_ergo_tree == payout
         assert proof.ring_size == 4  # 3 decoys + 1 real
 
@@ -128,8 +128,8 @@ class TestBuildWithdrawalProof:
         assert "nullifier" in proof.ring_data
         assert len(proof.ring_data["commitments"]) == 6
 
-    def test_nullifier_changes_each_withdrawal(self):
-        """Each withdrawal attempt produces a different U and I."""
+    def test_nullifier_deterministic_per_secret(self):
+        """v9: nullifier I=r·H is deterministic per secret (same r → same I)."""
         client = PrivacyPoolClient()
         secret = client.create_deposit("10_erg")
         decoys = [PedersenCommitment.commit(_random_r(), 10 * NANOERG) for _ in range(3)]
@@ -137,9 +137,10 @@ class TestBuildWithdrawalProof:
         p1 = client.build_withdrawal_proof(secret, decoys, MOCK_ERGO_TREE)
         p2 = client.build_withdrawal_proof(secret, decoys, MOCK_ERGO_TREE)
 
-        # Different U means different nullifier I
-        assert p1.secondary_gen_hex != p2.secondary_gen_hex
-        assert p1.nullifier_hex != p2.nullifier_hex
+        # v9: I = r·H is deterministic — same secret → same nullifier
+        assert p1.nullifier_hex == p2.nullifier_hex
+        assert p1.secondary_gen_hex is None
+        assert p2.secondary_gen_hex is None
 
 
 class TestBuildWithdrawalIntent:
@@ -154,9 +155,9 @@ class TestBuildWithdrawalIntent:
         intent = client.build_withdrawal_intent(proof)
 
         assert intent["meta"]["type"] == "IntentToWithdraw"
-        assert "R4" in intent["registers"]
-        assert "R5" in intent["registers"]
-        assert "R6" in intent["registers"]
+        assert "R4" in intent["registers"]  # Nullifier
+        assert "R6" in intent["registers"]  # Payout address
+        # R5 (genesisId) is filled by pool deployer at submission — not set here
 
     def test_nullifier_in_r4(self):
         client = PrivacyPoolClient()

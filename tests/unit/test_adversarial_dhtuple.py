@@ -18,7 +18,6 @@ import secrets
 import pytest
 
 from ergo_agent.crypto.dhtuple import (
-    WithdrawalRing,
     build_withdrawal_ring,
     compute_nullifier,
     format_context_extension,
@@ -28,12 +27,10 @@ from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
     NUMS_H,
     SECP256K1_N,
-    SECP256K1_P,
     PedersenCommitment,
     decode_point,
     encode_point,
 )
-
 
 # ==============================================================================
 # Helpers
@@ -95,18 +92,18 @@ class TestFixedHNullifier:
         """I = r·H equals H only if r == 1 (mod N). Practically impossible with random r."""
         for _ in range(20):
             r = _random_blinding()
-            I = compute_nullifier(r)
+            nullifier_pt = compute_nullifier(r)
             if r != 1:
-                assert I != NUMS_H
+                assert nullifier_pt != NUMS_H
 
     def test_50_nullifiers_no_collision(self):
         """50 random nullifiers should all be unique (birthday bound is ~2^128)."""
         nullifiers = set()
         for _ in range(50):
             r = _random_blinding()
-            I = compute_nullifier(r)
-            assert I not in nullifiers, "Nullifier collision detected"
-            nullifiers.add(I)
+            nullifier_pt = compute_nullifier(r)
+            assert nullifier_pt not in nullifiers, "Nullifier collision detected"
+            nullifiers.add(nullifier_pt)
 
     def test_zero_scalar_rejected(self):
         """r=0 must be rejected."""
@@ -120,13 +117,13 @@ class TestFixedHNullifier:
 
     def test_boundary_r1_valid(self):
         """r=1 is valid; I = 1·H = H."""
-        I = compute_nullifier(1)
-        assert I == NUMS_H  # r=1 → I = H by definition
+        nullifier_pt = compute_nullifier(1)
+        assert nullifier_pt == NUMS_H  # r=1 → I = H by definition
 
     def test_boundary_r_n_minus_1_valid(self):
         """r=N-1 is valid (largest valid scalar)."""
-        I = compute_nullifier(SECP256K1_N - 1)
-        assert len(I) == 66  # Valid compressed point
+        nullifier_pt = compute_nullifier(SECP256K1_N - 1)
+        assert len(nullifier_pt) == 66  # Valid compressed point
 
 
 # ==============================================================================
@@ -401,20 +398,20 @@ class TestContextExtension:
 
 class TestNullifierVerification:
     """
-    verify_nullifier(I, r) checks I == r·H. No secondary generator argument.
+    verify_nullifier(nullifier_pt, r) checks I == r·H. No secondary generator argument.
     """
 
     def test_correct_nullifier_verifies(self):
         r = _random_blinding()
-        I = compute_nullifier(r)
-        assert verify_nullifier(I, r) is True
+        nullifier_pt = compute_nullifier(r)
+        assert verify_nullifier(nullifier_pt, r) is True
 
     def test_wrong_r_fails(self):
         r1, r2 = _random_blinding(), _random_blinding()
         while r2 == r1:
             r2 = _random_blinding()
-        I = compute_nullifier(r1)
-        assert verify_nullifier(I, r2) is False
+        nullifier_pt = compute_nullifier(r1)
+        assert verify_nullifier(nullifier_pt, r2) is False
 
     def test_random_point_fails(self):
         """A random EC point should not verify as r·H for a given r."""
@@ -435,9 +432,9 @@ class TestNullifierVerification:
 
     def test_boundary_r1(self):
         """r=1 → I = H; verify confirms this."""
-        I = compute_nullifier(1)
-        assert verify_nullifier(I, 1) is True
+        nullifier_pt = compute_nullifier(1)
+        assert verify_nullifier(nullifier_pt, 1) is True
 
     def test_boundary_r_n_minus_1(self):
-        I = compute_nullifier(SECP256K1_N - 1)
-        assert verify_nullifier(I, SECP256K1_N - 1) is True
+        nullifier_pt = compute_nullifier(SECP256K1_N - 1)
+        assert verify_nullifier(nullifier_pt, SECP256K1_N - 1) is True

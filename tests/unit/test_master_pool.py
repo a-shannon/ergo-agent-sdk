@@ -11,7 +11,6 @@ import pytest
 
 from ergo_agent.crypto.dhtuple import (
     compute_nullifier,
-    generate_secondary_generator,
 )
 from ergo_agent.crypto.pedersen import (
     G_COMPRESSED,
@@ -78,13 +77,12 @@ def _make_intent_withdraw(
     payout_tree: str = "0008cd02" + "dd" * 32,
 ) -> IntentToWithdraw:
     r = _random_blinding()
-    U = generate_secondary_generator()
-    nul = compute_nullifier(r, U)
+    nul = compute_nullifier(r)  # v9: I = r·H
     return IntentToWithdraw(
         box_id="withdraw_" + secrets.token_hex(8),
         value_nanoerg=1_000_000,
         nullifier_hex=nul,
-        secondary_gen_hex=U,
+        secondary_gen_hex=None,  # v9: U=H hardcoded in contract
         payout_ergo_tree=payout_tree,
         ergo_tree="0008cd03" + "ee" * 32,
     )
