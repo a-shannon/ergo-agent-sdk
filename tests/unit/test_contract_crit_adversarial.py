@@ -607,7 +607,7 @@ class TestWithdrawalAuthStack:
     """
 
     def _itw_script(self) -> bytes:
-        return b"\x00\x00\x8c\xd0\x02midday_itw_ergotree" + bytes(range(60))
+        return b"\x00\x00\x8c\xd0\x02pool_itw_ergotree" + bytes(range(60))
 
     def _pool_r10(self, itw: bytes) -> bytes:
         return hashlib.blake2b(itw, digest_size=32).digest()
