@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/api-reference/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/architecture/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/getting-started/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/privacy-pool-guide/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/privacy-security-guide/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+    <url>
+         <loc>https://ergo-agent-sdk.readthedocs.io/tutorial/</loc>
+         <lastmod>2026-03-01</lastmod>
+    </url>
+</urlset>
